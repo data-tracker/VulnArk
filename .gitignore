@@ -20,6 +20,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# 上传文件与用户数据
+uploads/
+
 # Local environment files
 .env
 .env.local
