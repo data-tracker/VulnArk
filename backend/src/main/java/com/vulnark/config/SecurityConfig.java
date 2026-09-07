@@ -46,10 +46,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // 公开访问的路径
                 .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/test/**").permitAll()
-                .requestMatchers("/dashboard/test").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 // 需要认证的路径
                 .requestMatchers("/dashboard/**").authenticated()

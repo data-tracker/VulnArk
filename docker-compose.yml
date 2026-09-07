@@ -34,6 +34,8 @@ services:
       SPRING_SQL_INIT_DATA_LOCATIONS: classpath:db/data.sql
       SPRING_SQL_INIT_CONTINUE_ON_ERROR: "true"
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      # JWT 密钥必须提供（>=64 字节，openssl rand -base64 64 生成），启动时校验
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
     volumes:
       - vp-uploads:/app/uploads
 

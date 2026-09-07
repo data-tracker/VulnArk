@@ -16,21 +16,23 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
 # JWT Configuration
+# secret 必须通过环境变量 JWT_SECRET 注入（>=64 字节，HS512 签名要求），
+# 启动时校验，为空或过短将拒绝启动。生成方式：openssl rand -base64 64
 jwt:
-  secret: vulnark-secret-key-2023-enterprise-security-very-long-key-for-production
+  secret: ${JWT_SECRET:}
   expiration: 86400000 # 24 hours
 
 # Logging
 logging:
   level:
-    com.vulnark: debug
-    com.vulnark.security: debug
+    com.vulnark: info
+    com.vulnark.security: info
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
