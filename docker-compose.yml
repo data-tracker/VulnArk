@@ -27,13 +27,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vulnark?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      # Hibernate 先建表，再执行 db/data.sql 初始化默认账号
-      # （该文件在 classpath:db/ 子目录，必须显式指定，Spring 不会自动发现）
-      SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: "true"
-      SPRING_SQL_INIT_MODE: always
-      SPRING_SQL_INIT_DATA_LOCATIONS: classpath:db/data.sql
-      SPRING_SQL_INIT_CONTINUE_ON_ERROR: "true"
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      # schema 与初始数据由 Flyway 管理（db/migration/V*.sql），不再依赖 spring.sql.init
+      # JWT 密钥必须提供（>=64 字节，openssl rand -base64 64 生成），启动时校验
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
     volumes:
       - vp-uploads:/app/uploads
 

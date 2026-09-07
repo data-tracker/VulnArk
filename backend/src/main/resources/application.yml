@@ -15,22 +15,35 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      # schema 由 Flyway 管理，Hibernate 仅校验实体与表结构一致
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # 兼容已由 Hibernate ddl-auto 生成表结构的存量库：首次执行时记录基线，不做变更
+    # baseline-version=2：存量库视为已具备 V1(schema)+V2(初始数据) 的效果，仅执行后续迁移；
+    # 空库不受 baseline 影响，仍会按序完整执行 V1、V2
+    baseline-on-migrate: true
+    baseline-version: 2
+    out-of-order: false
+
 # JWT Configuration
+# secret 必须通过环境变量 JWT_SECRET 注入（>=64 字节，HS512 签名要求），
+# 启动时校验，为空或过短将拒绝启动。生成方式：openssl rand -base64 64
 jwt:
-  secret: vulnark-secret-key-2023-enterprise-security-very-long-key-for-production
+  secret: ${JWT_SECRET:}
   expiration: 86400000 # 24 hours
 
 # Logging
 logging:
   level:
-    com.vulnark: debug
-    com.vulnark.security: debug
+    com.vulnark: info
+    com.vulnark.security: info
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 

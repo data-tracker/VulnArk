@@ -27,12 +27,6 @@ public class DashboardController {
     @Autowired
     private DashboardService dashboardService;
 
-    @Operation(summary = "测试端点", description = "测试认证是否工作")
-    @GetMapping("/test")
-    public ResponseEntity<ApiResponse<String>> testEndpoint() {
-        return ResponseEntity.ok(ApiResponse.success("认证成功", "Hello World"));
-    }
-
     @Operation(summary = "获取仪表盘统计数据", description = "获取系统整体统计数据")
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<DashboardService.DashboardStats>> getDashboardStats() {
