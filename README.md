@@ -67,29 +67,66 @@ VulnArk+ 是一个专注于漏洞管理和资产安全的综合平台，旨在�
 
 ## 安装与使用
 
-### 环境要求
-- Java 17+
-- Node.js 16+
-- MySQL 8.0+
+### 方式一：Docker 部署（推荐）
 
-### 后端启动
+一条 compose 拉起完整服务（MySQL + Spring Boot 后端 + nginx 前端），首次启动自动建表并初始化默认账号。
+
 ```bash
-cd backend
-./mvnw spring-boot:run
+git clone https://github.com/data-tracker/VulnArk.git
+cd VulnArk
+cp .env.example .env
+vi .env        # 必填两项，见下表
+docker compose up -d --build
 ```
 
-### 前端启动
+访问 `http://<主机IP>:8080`（端口由 `.env` 中 `VP_PORT` 决定）。
+
+**环境变量（.env）**
+
+| 变量 | 必填 | 说明 |
+|---|---|---|
+| `JWT_SECRET` | ✅ | JWT 签名密钥，≥64 字节，生成：`openssl rand -base64 64`。未设置或过短将拒绝启动 |
+| `MYSQL_ROOT_PASSWORD` | ✅ | MySQL root 密码，≥6 位 |
+| `VP_PORT` | 可选 | 前端对外端口，默认 8080 |
+| `TZ` | 可选 | 时区，默认 Asia/Shanghai |
+
+**默认账号**（由 Flyway 迁移自动创建，密码均为 `Admin123456`，**首次登录后请立即修改**）
+
+| 用户名 | 角色 |
+|---|---|
+| admin | ADMIN（管理员） |
+| manager | MANAGER |
+| analyst | ANALYST |
+| viewer | VIEWER（只读） |
+
+**数据库迁移说明**：schema 与初始数据由 [Flyway](backend/src/main/resources/db/migration/) 版本化管理——全新库自动执行全部迁移；从旧版（`ddl-auto=update` 时代）升级时自动 baseline，存量数据零丢失。日常升级只需 `git pull && docker compose up -d --build`。
+
+**常用运维命令**
+
 ```bash
+docker compose logs -f backend     # 跟踪后端日志
+docker compose down                # 停止（保留数据）
+docker compose down -v             # 停止并清空所有数据（慎用）
+```
+
+### 方式二：本地开发运行
+
+环境要求：Java 17+、Node.js 16+、MySQL 8.0+
+
+```bash
+# 后端（需自行准备 MySQL，并通过环境变量注入连接信息与 JWT_SECRET）
+cd backend
+JWT_SECRET=$(openssl rand -base64 64) SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/vulnark ./mvnw spring-boot:run
+
+# 前端
 cd frontend
 npm install
 npm run dev
 ```
 
 ### 登录
-```bash
-username：admin
-Password：password123
-```
+
+见 Docker 部署一节的默认账号表（密码 `Admin123456`，登录后请修改）。
 
 ## 项目截图
 <img width="779" alt="iShot_2025-07-03_15 25 01" src="https://github.com/user-attachments/assets/f1a0d26e-ef5c-40fb-9214-1d27798e7e0b" />
