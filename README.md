@@ -139,28 +139,40 @@ npm run dev
 ## 项目结构
 
 ```
-vulnark+/
+VulnArk/
+├── docker-compose.yml      # 三容器编排（MySQL + 后端 + Nginx 前端）
+├── .env.example            # 环境变量模板（JWT_SECRET / 数据库密码等）
+├── scripts/                # 辅助脚本（Dependency-Track 漏洞导入等）
 ├── backend/                # 后端代码
-│   ├── src/                # 源代码
-│   │   ├── main/java/com/vulnark/
-│   │   │   ├── controller/ # 控制器
-│   │   │   ├── service/    # 业务逻辑
-│   │   │   ├── repository/ # 数据访问
-│   │   │   ├── entity/     # 实体类
-│   │   │   ├── dto/        # 数据传输对象
-│   │   │   ├── config/     # 配置类
-│   │   │   └── security/   # 安全相关
-│   │   └── resources/      # 配置文件
-│   └── pom.xml             # Maven配置
+│   ├── Dockerfile          # Maven 多阶段构建
+│   ├── src/main/java/com/vulnark/
+│   │   ├── controller/     # REST 控制器
+│   │   ├── service/        # 业务逻辑（impl 实现、detection 检测引擎）
+│   │   ├── repository/     # Spring Data JPA 数据访问
+│   │   ├── entity/         # JPA 实体类
+│   │   ├── dto/            # 数据传输对象
+│   │   ├── config/         # 配置类（SecurityConfig 等）
+│   │   ├── security/       # JWT 认证（密钥启动校验）
+│   │   ├── baseline/       # 基线核查引擎
+│   │   ├── common/         # 统一响应结构
+│   │   ├── exception/      # 业务异常
+│   │   └── util/           # 工具类
+│   ├── src/main/resources/
+│   │   ├── application.yml # 应用配置（环境变量可覆盖）
+│   │   └── db/migration/   # Flyway 版本化迁移（V1 基线 / V2 初始数据）
+│   └── pom.xml             # Maven 配置
 └── frontend/               # 前端代码
+    ├── Dockerfile          # Node 构建 + Nginx 运行时
+    ├── nginx.conf          # SPA 回退 + /api 反代
     ├── src/
-    │   ├── api/            # API调用
+    │   ├── api/            # API 调用封装
     │   ├── views/          # 页面组件
-    │   ├── components/     # 通用组件
-    │   ├── stores/         # 状态管理
-    │   └── router/         # 路由配置
-    ├── package.json        # NPM配置
-    └── vite.config.ts      # Vite配置
+    │   ├── stores/         # Pinia 状态管理
+    │   ├── router/         # 路由配置
+    │   ├── types/          # TypeScript 类型定义
+    │   └── styles/         # 样式
+    ├── package.json
+    └── vite.config.ts
 ```
 
 ## 开发团队
