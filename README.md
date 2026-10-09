@@ -4,11 +4,13 @@ VulnArk+ 是一个专注于漏洞管理和资产安全的综合平台，旨在�
 
 ## 技术栈
 
-- **前端**：Vue 3 + TypeScript + Arco Design UI + Echarts
-- **后端**：Spring Boot 3.2 + Spring Security + Spring Data JPA
+- **前端**：Vue 3 + TypeScript + Vite + Arco Design UI + Pinia + Echarts
+- **后端**：Java 17 + Spring Boot 3.2 + Spring Security + Spring Data JPA
 - **数据库**：MySQL 8.0
-- **认证**：JWT Token
+- **数据库迁移**：Flyway（schema 与初始数据版本化管理，见 `backend/src/main/resources/db/migration/`）
+- **认证**：JWT Token（HS512，密钥经环境变量注入并启动校验）
 - **API文档**：SpringDoc OpenAPI
+- **部署**：Docker Compose（MySQL + 后端 + Nginx 前端三容器）
 
 ## 已实现功能
 
