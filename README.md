@@ -31,9 +31,12 @@ VulnArk+ 是一个专注于漏洞管理和资产安全的综合平台，旨在�
 - 漏洞创建、编辑、删除和查询
 - 漏洞严重程度分级（信息、低危、中危、高危、严重）
 - 漏洞状态跟踪（待处理、处理中、已解决、已关闭、重新打开）
-- 漏洞分配与责任人管理
+- 验证状态管理（待验证、已验证、误报）
+- 漏洞分配与责任人管理（分配后自动进入"处理中"）
 - 漏洞批量操作（批量分配、批量删除）
 - 漏洞详情与CVE关联
+- 漏洞-资产关联：按资产筛选、资产页下钻查看该资产漏洞（`assetId` 渐进式关联）
+- Dependency-Track 漏洞批量导入（见 `scripts/import_to_vulnarkplus.py`）
 
 ### 项目管理
 - 项目创建与管理
@@ -45,7 +48,9 @@ VulnArk+ 是一个专注于漏洞管理和资产安全的综合平台，旨在�
 - 漏洞统计与趋势分析
 - 资产安全状态统计
 
-## 计划中功能
+## 扩展功能模块（代码已实现，未经生产验证）
+
+以下模块前后端代码均已就绪（Controller + 页面），但尚未在真实环境充分验证，使用前建议先行测试：
 
 ### 扫描管理
 - 安全扫描任务创建与执行
@@ -131,10 +136,10 @@ npm run dev
 见 Docker 部署一节的默认账号表（密码 `Admin123456`，登录后请修改）。
 
 ## 项目截图
-<img width="779" alt="iShot_2025-07-03_15 25 01" src="https://github.com/user-attachments/assets/f1a0d26e-ef5c-40fb-9214-1d27798e7e0b" />
-<img width="1473" alt="iShot_2025-07-03_15 25 38" src="https://github.com/user-attachments/assets/e21add73-679d-42f0-93b1-d193c695e899" />
-<img width="1474" alt="iShot_2025-07-03_15 25 32" src="https://github.com/user-attachments/assets/bd3a862b-a523-4a5a-9432-bcf435027e3b" />
-<img width="1467" alt="iShot_2025-07-03_15 25 25" src="https://github.com/user-attachments/assets/039099ca-ca75-41e7-9717-a765187186d1" />
+
+<img width="1473" alt="dashboard" src="https://github.com/user-attachments/assets/e21add73-679d-42f0-93b1-d193c695e899" />
+<img width="1474" alt="vulnerabilities" src="https://github.com/user-attachments/assets/bd3a862b-a523-4a5a-9432-bcf435027e3b" />
+<img width="1467" alt="assets" src="https://github.com/user-attachments/assets/039099ca-ca75-41e7-9717-a765187186d1" />
 
 ## 项目结构
 
@@ -174,6 +179,19 @@ VulnArk/
     ├── package.json
     └── vite.config.ts
 ```
+
+## 关于本 Fork
+
+本仓库 fork 自 [cloudoshk/VulnArk](https://github.com/cloudoshk/VulnArk)（上游已停止维护），在此基础上进行了二次开发与工程化改造，主要包括：
+
+- Docker Compose 容器化部署（含国内镜像源加速与构建缓存）
+- 安全加固：JWT 密钥环境变量注入与启动校验，移除调试端点
+- 引入 Flyway 版本化数据库迁移，替代 `ddl-auto=update`
+- 漏洞-资产关联（`assetId` 渐进式）与按资产筛选
+- 修复多项缺陷（分页/筛选空数据、中文乱码、资产下钻过滤、文档失实等）
+- Dependency-Track 漏洞导入脚本
+
+变更明细见 [提交历史](https://github.com/data-tracker/VulnArk/commits/dev)。
 
 ## 开发团队
 
