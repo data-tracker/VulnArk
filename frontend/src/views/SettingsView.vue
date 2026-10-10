@@ -2,7 +2,7 @@
   <div class="settings-container">
     <!-- 顶部标题 -->
     <div class="settings-header">
-      <h2>⚙️ 设置</h2>
+      <h2>⚙️ 系统设置</h2>
       <p class="settings-desc">管理您的账户、安全设置和系统配置</p>
     </div>
 

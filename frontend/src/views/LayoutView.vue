@@ -71,7 +71,7 @@
           <template #icon>
             <icon-settings />
           </template>
-          设置
+          系统设置
         </a-menu-item>
       </a-menu>
     </a-layout-sider>
@@ -117,7 +117,7 @@
                   <template #icon>
                     <icon-settings />
                   </template>
-                  设置
+                  系统设置
                 </a-doption>
                 <a-doption @click="handleLogout">
                   <template #icon>
