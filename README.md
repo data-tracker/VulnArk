@@ -199,7 +199,7 @@ VulnArk 由安全开发团队开发和维护。
 
 ## 联系作者
  
-[github.com/data-tracker](https://github.com/data-tracker)（本 Fork 维护者；原作者：vpsanta3@gmail.com）
+data-tracker@outlook.com（本 Fork 维护者；原作者：vpsanta3@gmail.com）
 
 ## 许可证
 
