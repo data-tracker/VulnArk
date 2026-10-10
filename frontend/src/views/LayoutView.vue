@@ -66,6 +66,13 @@
           </template>
           用户管理
         </a-menu-item>
+
+        <a-menu-item v-if="isAdmin" key="/settings">
+          <template #icon>
+            <icon-settings />
+          </template>
+          系统设置
+        </a-menu-item>
       </a-menu>
     </a-layout-sider>
     
@@ -202,6 +209,9 @@ const currentPageTitle = computed(() => {
 
 // 用户信息
 const userStore = computed(() => authStore)
+
+// 是否管理员（系统设置入口仅管理员可见）
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
 // 监听路由变化
 watch(
