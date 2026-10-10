@@ -76,7 +76,7 @@ const routes: Array<RouteRecordRaw> = [
         path: '/settings',
         name: 'Settings',
         component: () => import('@/views/SettingsView.vue'),
-        meta: { title: '系统设置', requiresAdmin: true }
+        meta: { title: '设置' }
       }
     ]
   },
