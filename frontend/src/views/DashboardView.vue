@@ -106,9 +106,10 @@ import {
   IconArrowDown,
   IconPlus,
   IconSearch,
-  IconSettings,
-  IconRefresh
+  IconRefresh,
+  IconSettings
 } from '@arco-design/web-vue/es/icon'
+import { useAuthStore } from '@/stores/auth'
 import { 
   getDashboardStats, 
   getVulnerabilityTrend, 
@@ -124,6 +125,7 @@ import dayjs from 'dayjs'
 import { Message } from '@arco-design/web-vue'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 图表引用
 const trendChartRef = ref<HTMLElement>()
@@ -202,12 +204,14 @@ const quickActions = [
     icon: IconBug,
     handler: () => router.push('/vulnerabilities')
   },
-  {
-    key: 'system-settings',
-    label: '系统设置',
-    icon: IconSettings,
-    handler: () => {}
-  }
+  ...(authStore.user?.role === 'ADMIN'
+    ? [{
+        key: 'system-settings',
+        label: '系统设置',
+        icon: IconSettings,
+        handler: () => router.push('/settings')
+      }]
+    : [])
 ]
 
 // 加载仪表盘统计数据

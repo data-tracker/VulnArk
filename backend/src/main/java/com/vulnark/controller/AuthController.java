@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.Map;
 
 @Tag(name = "认证管理", description = "用户认证相关接口")
 @RestController
@@ -60,6 +61,45 @@ public class AuthController {
         }
     }
     
+    @Operation(summary = "更新本人资料", description = "个人设置：修改姓名/邮箱/电话")
+    @PutMapping("/profile")
+    public ApiResponse<User> updateOwnProfile(@RequestBody Map<String, String> request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                return ApiResponse.unauthorized();
+            }
+            User current = (User) authentication.getPrincipal();
+            User user = userService.updateOwnProfile(
+                    current.getUsername(),
+                    request.get("fullName"),
+                    request.get("email"),
+                    request.get("phone"));
+            return ApiResponse.success("资料更新成功", user);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    @Operation(summary = "修改本人密码", description = "个人设置：需提供旧密码")
+    @PutMapping("/profile/password")
+    public ApiResponse<Void> changeOwnPassword(@RequestBody Map<String, String> request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                return ApiResponse.unauthorized();
+            }
+            User current = (User) authentication.getPrincipal();
+            userService.changeOwnPassword(
+                    current.getUsername(),
+                    request.get("oldPassword"),
+                    request.get("newPassword"));
+            return ApiResponse.success("密码修改成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
     @Operation(summary = "用户登出")
     @PostMapping("/logout")
     public ApiResponse<String> logout() {

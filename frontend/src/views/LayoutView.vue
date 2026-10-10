@@ -66,6 +66,13 @@
           </template>
           用户管理
         </a-menu-item>
+
+        <a-menu-item key="/settings">
+          <template #icon>
+            <icon-settings />
+          </template>
+          系统设置
+        </a-menu-item>
       </a-menu>
     </a-layout-sider>
     
@@ -100,17 +107,17 @@
                 </span>
               </div>
               <template #content>
-                <a-doption>
+                <a-doption @click="openSettings">
                   <template #icon>
                     <icon-user />
                   </template>
                   个人信息
                 </a-doption>
-                <a-doption>
+                <a-doption @click="openSettings">
                   <template #icon>
                     <icon-settings />
                   </template>
-                  设置
+                  系统设置
                 </a-doption>
                 <a-doption @click="handleLogout">
                   <template #icon>
@@ -133,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import {
@@ -170,6 +177,7 @@ const currentPageTitle = computed(() => {
 // 用户信息
 const userStore = computed(() => authStore)
 
+
 // 监听路由变化
 watch(
   () => route.path,
@@ -202,6 +210,11 @@ const handleLogout = () => {
   authStore.logout()
   Message.success('退出登录成功')
   router.push('/login')
+}
+
+// ===== 设置入口（跳转设置页，页面内按角色显示管理页签）=====
+const openSettings = () => {
+  router.push('/settings')
 }
 </script>
 

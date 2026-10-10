@@ -71,6 +71,12 @@ const routes: Array<RouteRecordRaw> = [
         name: 'BaselineCheck',
         component: () => import('@/views/BaselineCheckView.vue'),
         meta: { title: '基线检查' }
+      },
+      {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('@/views/SettingsView.vue'),
+        meta: { title: '系统设置' }
       }
     ]
   },

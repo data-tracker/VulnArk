@@ -20,3 +20,19 @@ export const getCurrentUser = async (): Promise<User> => {
 export const logout = async (): Promise<void> => {
   return request.post('/auth/logout')
 } 
+// 更新本人资料（个人设置）
+export const updateOwnProfile = async (data: {
+  fullName?: string
+  email?: string
+  phone?: string
+}): Promise<User> => {
+  return request.put('/auth/profile', data)
+}
+
+// 修改本人密码（需旧密码）
+export const changeOwnPassword = async (data: {
+  oldPassword: string
+  newPassword: string
+}): Promise<void> => {
+  return request.put('/auth/profile/password', data)
+}

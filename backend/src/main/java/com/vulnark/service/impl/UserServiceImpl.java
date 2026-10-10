@@ -121,4 +121,41 @@ public class UserServiceImpl implements UserService {
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
+
+    @Override
+    @Transactional
+    public User updateOwnProfile(String username, String fullName, String email, String phone) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        if (fullName != null && !fullName.trim().isEmpty()) {
+            user.setFullName(fullName.trim());
+        }
+        if (email != null && !email.trim().isEmpty()) {
+            // 邮箱唯一性校验（排除本人）
+            Optional<User> existing = userRepository.findByEmail(email.trim());
+            if (existing.isPresent() && !existing.get().getId().equals(user.getId())) {
+                throw new RuntimeException("邮箱已被其他用户使用");
+            }
+            user.setEmail(email.trim());
+        }
+        if (phone != null) {
+            user.setPhone(phone.trim());
+        }
+        return userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void changeOwnPassword(String username, String oldPassword, String newPassword) {
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new RuntimeException("新密码长度至少6位");
+        }
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("旧密码不正确");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }

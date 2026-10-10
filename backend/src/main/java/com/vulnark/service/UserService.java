@@ -48,4 +48,14 @@ public interface UserService {
      * 检查邮箱是否存在
      */
     boolean existsByEmail(String email);
+
+    /**
+     * 更新本人资料（个人设置）
+     */
+    User updateOwnProfile(String username, String fullName, String email, String phone);
+
+    /**
+     * 修改本人密码（需验证旧密码）
+     */
+    void changeOwnPassword(String username, String oldPassword, String newPassword);
 }
