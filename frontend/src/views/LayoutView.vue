@@ -100,13 +100,13 @@
                 </span>
               </div>
               <template #content>
-                <a-doption>
+                <a-doption @click="openSettings">
                   <template #icon>
                     <icon-user />
                   </template>
                   个人信息
                 </a-doption>
-                <a-doption>
+                <a-doption @click="openSettings">
                   <template #icon>
                     <icon-settings />
                   </template>
@@ -129,11 +129,43 @@
         <router-view />
       </a-layout-content>
     </a-layout>
+
+    <!-- 个人设置弹窗 -->
+    <a-modal v-model:visible="settingsVisible" title="个人设置" :footer="false" width="480px">
+      <a-form :model="profileForm" layout="vertical">
+        <a-form-item label="用户名">
+          <a-input :model-value="userStore.user?.username" disabled />
+        </a-form-item>
+        <a-form-item label="姓名">
+          <a-input v-model="profileForm.fullName" placeholder="姓名" />
+        </a-form-item>
+        <a-form-item label="邮箱">
+          <a-input v-model="profileForm.email" placeholder="邮箱" />
+        </a-form-item>
+        <a-form-item label="电话">
+          <a-input v-model="profileForm.phone" placeholder="电话" />
+        </a-form-item>
+        <a-button type="primary" :loading="settingsLoading" @click="saveProfile">保存资料</a-button>
+      </a-form>
+      <a-divider />
+      <a-form :model="passwordForm" layout="vertical">
+        <a-form-item label="旧密码">
+          <a-input-password v-model="passwordForm.oldPassword" placeholder="当前密码" />
+        </a-form-item>
+        <a-form-item label="新密码">
+          <a-input-password v-model="passwordForm.newPassword" placeholder="至少6位" />
+        </a-form-item>
+        <a-form-item label="确认新密码">
+          <a-input-password v-model="passwordForm.confirmPassword" placeholder="再次输入新密码" />
+        </a-form-item>
+        <a-button type="primary" status="warning" :loading="settingsLoading" @click="savePassword">修改密码</a-button>
+      </a-form>
+    </a-modal>
   </a-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import {
@@ -149,6 +181,7 @@ import {
   IconMoon
 } from '@arco-design/web-vue/es/icon'
 import { useAuthStore } from '@/stores/auth'
+import { updateOwnProfile, changeOwnPassword, getCurrentUser } from '@/api/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -202,6 +235,82 @@ const handleLogout = () => {
   authStore.logout()
   Message.success('退出登录成功')
   router.push('/login')
+}
+
+// ===== 个人设置 =====
+const settingsVisible = ref(false)
+const settingsLoading = ref(false)
+const profileForm = reactive({
+  fullName: '',
+  email: '',
+  phone: ''
+})
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const openSettings = () => {
+  const u = authStore.user
+  if (u) {
+    profileForm.fullName = u.fullName || ''
+    profileForm.email = u.email || ''
+    profileForm.phone = u.phone || ''
+  }
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  settingsVisible.value = true
+}
+
+const saveProfile = async () => {
+  settingsLoading.value = true
+  try {
+    await updateOwnProfile({
+      fullName: profileForm.fullName,
+      email: profileForm.email,
+      phone: profileForm.phone
+    })
+    Message.success('资料更新成功')
+    // 刷新本地用户信息
+    const fresh = await getCurrentUser()
+    authStore.user = fresh
+  } catch (e) {
+    // 拦截器已提示
+  } finally {
+    settingsLoading.value = false
+  }
+}
+
+const savePassword = async () => {
+  if (!passwordForm.oldPassword || !passwordForm.newPassword) {
+    Message.warning('请填写旧密码和新密码')
+    return
+  }
+  if (passwordForm.newPassword.length < 6) {
+    Message.warning('新密码长度至少6位')
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    Message.warning('两次输入的新密码不一致')
+    return
+  }
+  settingsLoading.value = true
+  try {
+    await changeOwnPassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword
+    })
+    Message.success('密码修改成功，请牢记新密码')
+    passwordForm.oldPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+  } catch (e) {
+    // 拦截器已提示
+  } finally {
+    settingsLoading.value = false
+  }
 }
 </script>
 

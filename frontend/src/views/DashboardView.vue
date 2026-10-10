@@ -106,7 +106,6 @@ import {
   IconArrowDown,
   IconPlus,
   IconSearch,
-  IconSettings,
   IconRefresh
 } from '@arco-design/web-vue/es/icon'
 import { 
@@ -201,12 +200,6 @@ const quickActions = [
     label: '漏洞审核',
     icon: IconBug,
     handler: () => router.push('/vulnerabilities')
-  },
-  {
-    key: 'system-settings',
-    label: '系统设置',
-    icon: IconSettings,
-    handler: () => {}
   }
 ]
 
