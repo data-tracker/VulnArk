@@ -1,6 +1,6 @@
-# VulnArk+ 漏洞管理平台
+# VulnArk 漏洞管理平台
 
-VulnArk+ 是一个专注于漏洞管理和资产安全的综合平台，旨在帮助企业和组织有效地管理、跟踪和修复安全漏洞。
+VulnArk 是一个专注于漏洞管理和资产安全的综合平台，旨在帮助企业和组织有效地管理、跟踪和修复安全漏洞。
 
 ## 技术栈
 
@@ -195,11 +195,11 @@ VulnArk/
 
 ## 开发团队
 
-VulnArk+ 由安全开发团队开发和维护。
+VulnArk 由安全开发团队开发和维护。
 
 ## 联系作者
  
-vpsanta3@gmail.com
+[github.com/data-tracker](https://github.com/data-tracker)（本 Fork 维护者；原作者：vpsanta3@gmail.com）
 
 ## 许可证
 
