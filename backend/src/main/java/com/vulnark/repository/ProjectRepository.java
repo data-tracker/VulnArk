@@ -2,6 +2,8 @@ package com.vulnark.repository;
 
 import com.vulnark.entity.Project;
 import com.vulnark.entity.User;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,6 +21,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
      * 根据项目名称查找项目
      */
     List<Project> findByNameContainingIgnoreCase(String name);
+
+    Optional<Project> findFirstByName(String name);
     
     /**
      * 根据状态查找项目

@@ -7,7 +7,7 @@ export interface DashboardStats {
     high: number
     medium: number
     low: number
-    info: number
+    emergency: number
     open: number
     inProgress: number
     resolved: number

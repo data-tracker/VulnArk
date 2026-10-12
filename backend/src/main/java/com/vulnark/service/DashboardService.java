@@ -46,7 +46,7 @@ public class DashboardService {
             vulnStats.setHigh(vulnerabilityRepository.countBySeverityAndDeletedFalse(Vulnerability.Severity.HIGH));
             vulnStats.setMedium(vulnerabilityRepository.countBySeverityAndDeletedFalse(Vulnerability.Severity.MEDIUM));
             vulnStats.setLow(vulnerabilityRepository.countBySeverityAndDeletedFalse(Vulnerability.Severity.LOW));
-            vulnStats.setInfo(vulnerabilityRepository.countBySeverityAndDeletedFalse(Vulnerability.Severity.INFO));
+            vulnStats.setEmergency(vulnerabilityRepository.countBySeverityAndDeletedFalse(Vulnerability.Severity.EMERGENCY));
             vulnStats.setOpen(vulnerabilityRepository.countByStatusAndDeletedFalse(Vulnerability.Status.OPEN));
             vulnStats.setInProgress(vulnerabilityRepository.countByStatusAndDeletedFalse(Vulnerability.Status.IN_PROGRESS));
             vulnStats.setResolved(vulnerabilityRepository.countByStatusAndDeletedFalse(Vulnerability.Status.RESOLVED));
@@ -312,7 +312,7 @@ public class DashboardService {
         private long high;
         private long medium;
         private long low;
-        private long info;
+        private long emergency;
         private long open;
         private long inProgress;
         private long resolved;
@@ -330,8 +330,8 @@ public class DashboardService {
         public void setMedium(long medium) { this.medium = medium; }
         public long getLow() { return low; }
         public void setLow(long low) { this.low = low; }
-        public long getInfo() { return info; }
-        public void setInfo(long info) { this.info = info; }
+        public long getEmergency() { return emergency; }
+        public void setEmergency(long emergency) { this.emergency = emergency; }
         public long getOpen() { return open; }
         public void setOpen(long open) { this.open = open; }
         public long getInProgress() { return inProgress; }
