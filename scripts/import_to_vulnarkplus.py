@@ -118,6 +118,14 @@ class VulnArkPlus:
             sys.exit(f"创建项目失败: {r}")
         return r["data"]["id"]
 
+    def find_asset_id(self, name):
+        """按名称查找资产（漏洞创建要求必填影响资产），不存在则报错退出。"""
+        r = http_json("GET", f"{self.base}/api/assets?page=0&size=100", self._h())
+        for a in (r.get("data") or {}).get("content", []):
+            if a.get("name", "").strip().lower() == name.strip().lower():
+                return a["id"]
+        sys.exit(f"VulnArk+ 中找不到名为 {name!r} 的资产，请先在资产管理中创建")
+
     def existing_keys(self, project_id):
         exist, page = set(), 0
         while True:
@@ -145,7 +153,7 @@ class VulnArkPlus:
         )
 
 
-def build_req(v, comp, project_id):
+def build_req(v, comp, project_id, asset_id):
     vid = (v.get("vulnId") or "").strip()
     source = (v.get("source") or "").strip()
     is_cve = vid.upper().startswith("CVE-")
@@ -173,6 +181,7 @@ def build_req(v, comp, project_id):
         "cveId": vid if is_cve else display[:100],
         "cvssScore": cvss,
         "projectId": project_id,
+        "assetId": asset_id,
         "affectedSystems": f"依赖组件 {name}@{ver}",
         "solution": fix,
         "discoveredDate": TODAY,
@@ -188,6 +197,8 @@ def main():
     ap.add_argument("--vulnark-user", default=os.environ.get("VULNARK_USER", "admin"))
     ap.add_argument("--vulnark-pass", default=os.environ.get("VULNARK_PASSWORD", ""))
     ap.add_argument("--project", default="", help="VulnArk+ 项目名（默认与 DTrack 项目同名）")
+    ap.add_argument("--asset", default=os.environ.get("VULNARK_ASSET", ""),
+                    help="影响资产名（必填：漏洞创建要求挂资产；同名资产需已存在）")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     for k, v in [
@@ -195,6 +206,7 @@ def main():
         ("--dtrack-key", args.dtrack_key),
         ("--dtrack-project", args.dtrack_project),
         ("--vulnark-pass", args.vulnark_pass),
+        ("--asset", args.asset),
     ]:
         if not v:
             ap.error(f"缺少参数: {k}")
@@ -208,6 +220,8 @@ def main():
     pname = args.project or args.dtrack_project
     pid = vp.find_or_create_project(pname)
     print(f"VulnArk+ 项目 “{pname}” → id={pid}")
+    aid = vp.find_asset_id(args.asset)
+    print(f"影响资产 “{args.asset}” → id={aid}")
 
     existing = vp.existing_keys(pid)
     created = skipped = errors = 0
@@ -226,7 +240,7 @@ def main():
                 key = v.get("vulnId", "")
                 seen.setdefault(key, v)
             for v in seen.values():
-                req = build_req(v, comp, pid)
+                req = build_req(v, comp, pid, aid)
                 if req["cveId"] in existing or req["title"] in existing:
                     skipped += 1
                     continue
