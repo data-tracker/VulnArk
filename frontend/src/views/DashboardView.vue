@@ -420,7 +420,7 @@ const getSeverityDisplayName = (severity: string) => {
     'HIGH': '高危',
     'MEDIUM': '中危',
     'LOW': '低危',
-    'INFO': '信息'
+    'EMERGENCY': '紧急'
   }
   return nameMap[severity] || severity
 }
@@ -432,7 +432,7 @@ const getSeverityColor = (severity: string) => {
     'HIGH': '#f59e0b',
     'MEDIUM': '#3b82f6',
     'LOW': '#10b981',
-    'INFO': '#6b7280'
+    'EMERGENCY': '#FFC7CE'
   }
   return colorMap[severity] || '#6b7280'
 }
