@@ -45,9 +45,12 @@ public class UserManagementService {
         User user = new User();
         BeanUtils.copyProperties(request, user, "password");
         
-        // 加密密码
+        // 加密密码（未提供时生成随机初始密码兜底，避免非空约束失败）
         if (StringUtils.hasText(request.getPassword())) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
+        } else {
+            String random = java.util.UUID.randomUUID().toString().substring(0, 10);
+            user.setPassword(passwordEncoder.encode(random));
         }
         
         // 设置默认值
