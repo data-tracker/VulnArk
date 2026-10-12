@@ -123,6 +123,9 @@ def main(xlsx_path):
             f"{owner if owner else 'NULL'}, NOW(6), NOW(6), 0);")
 
     print(f"解析 {len(data)} 行，跳过 {skip} 行（非 CVE），生成 {len(sqls)-3} 条 INSERT")
+    # 直插绕过了 API 的统计联动，末尾刷新资产漏洞计数
+    sqls.append("UPDATE assets a SET vulnerability_count = "
+                "(SELECT COUNT(*) FROM vulnerabilities v WHERE v.asset_id = a.id AND v.deleted = 0);")
 
     # 分批执行
     batch, total = [], 0
