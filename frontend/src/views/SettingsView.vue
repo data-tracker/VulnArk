@@ -220,6 +220,13 @@
               仅作用于"待处理"且由同步创建的漏洞——人工录入、Excel 导入、以及已手动改过状态的漏洞一律不受影响。
             </div>
               </a-form-item>
+          <a-form-item label="EPSS/KEV 自动补全">
+            <a-switch v-model="autoEnrich" />
+            <div class="sync-hint" style="margin-top: 4px">
+              同步后从 FIRST（EPSS）与 CISA（KEV 目录）官方源补全风险字段——DTrack 不提供这两个数据。<br/>
+              字段对所有漏洞补全；Band 重算仍仅限同步创建的漏洞（人工分析成果不受影响）。
+            </div>
+          </a-form-item>
               <a-form-item label="刷新风险字段">
                 <a-switch v-model="refreshFields" />
                 <span class="sync-hint">刷新 CVSS/EPSS/KEV 并重算 Band（仅对同步创建的漏洞，人工/Excel 数据不受影响）</span>
@@ -266,6 +273,16 @@
                     </div>
                     <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row two">
                       <span>{{ d.cve }}</span><span>{{ d.title }}</span>
+                    </div>
+                  </div>
+                  <div v-if="parseLogDetail(log).enrich">
+                    <div class="detail-group-title">EPSS/KEV 补全</div>
+                    <div class="detail-row two" v-if="parseLogDetail(log).enrich.error" style="color:#dc2626">
+                      <span>失败</span><span>{{ parseLogDetail(log).enrich.error }}</span>
+                    </div>
+                    <div class="detail-row two" v-else>
+                      <span>结果</span>
+                      <span>EPSS 更新 {{ parseLogDetail(log).enrich.epssUpdated ?? 0 }} · KEV 更新 {{ parseLogDetail(log).enrich.kevUpdated ?? 0 }} · Band 重算 {{ parseLogDetail(log).enrich.bandRecalced ?? 0 }}（KEV 目录 {{ parseLogDetail(log).enrich.kevCatalogSize ?? '-' }} 条）</span>
                     </div>
                   </div>
                   <div v-if="parseLogDetail(log).updated?.length">
@@ -465,11 +482,16 @@ const syncForm = reactive<Record<string, any>>({
   'dtrack.mapping': '{}',
   'dtrack.frequency': 'daily',
   'dtrack.auto_resolve': 'true',
-  'dtrack.refresh_fields': 'true'
+  'dtrack.refresh_fields': 'true',
+  'dtrack.enrich': 'true'
 })
 const autoResolve = computed({
   get: () => syncForm['dtrack.auto_resolve'] === 'true',
   set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
+})
+const autoEnrich = computed({
+  get: () => syncForm['dtrack.enrich'] === 'true',
+  set: (v: boolean) => { syncForm['dtrack.enrich'] = v ? 'true' : 'false' }
 })
 const refreshFields = computed({
   get: () => syncForm['dtrack.refresh_fields'] === 'true',

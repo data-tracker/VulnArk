@@ -112,12 +112,15 @@ public class DTrackSyncService {
                     .findFirstByTriggerTypeOrderBySyncTimeDesc("AUTO")
                     .map(SyncLog::getSyncTime).orElse(null);
             boolean due = false;
+            LocalDateTime now = LocalDateTime.now();
             if (last == null) {
                 due = true;
             } else if ("hourly".equals(freq)) {
-                due = last.isBefore(LocalDateTime.now().minusHours(1));
-            } else { // daily
-                due = last.isBefore(LocalDateTime.now().minusDays(1));
+                due = last.isBefore(now.minusHours(1));
+            } else { // daily：每天凌晨 2:00 固定时刻（未到 2 点看昨天窗口）
+                LocalDateTime windowStart = now.toLocalDate().atTime(2, 0);
+                if (now.isBefore(windowStart)) windowStart = windowStart.minusDays(1);
+                due = last.isBefore(windowStart);
             }
             if (due) runSync("AUTO", null);
         } catch (Exception e) {
@@ -166,12 +169,26 @@ public class DTrackSyncService {
                 }
             }
             if (mapping.isEmpty()) details.add("映射表为空，未同步任何项目");
+
+            // ===== EPSS/KEV 自动补全（FIRST + CISA 原始数据源）=====
+            Map<String, Object> enrichResult = null;
+            if (Boolean.parseBoolean(cfg("dtrack.enrich"))) {
+                try {
+                    enrichResult = enrichRiskFields(refresh);
+                } catch (Exception e) {
+                    logger.error("EPSS/KEV 补全失败", e);
+                    enrichResult = new LinkedHashMap<>();
+                    enrichResult.put("error", e.getMessage());
+                }
+            }
+
             // detail 存 JSON：摘要 + 各类变更的 CVE 明细（前端展开显示）
             Map<String, Object> detailJson = new LinkedHashMap<>();
             detailJson.put("summary", String.join("\n", details));
             detailJson.put("added", addedDetail);
             detailJson.put("updated", updatedDetail);
             detailJson.put("resolved", resolvedDetail);
+            if (enrichResult != null) detailJson.put("enrich", enrichResult);
             log.setDetail(MAPPER.writeValueAsString(detailJson));
         } catch (Exception e) {
             log.setFailed(log.getFailed() + 1);
@@ -180,6 +197,85 @@ public class DTrackSyncService {
             running = false;
         }
         return syncLogRepo.save(log);
+    }
+
+    /**
+     * EPSS/KEV 自动补全：
+     * - KEV：下载 CISA 目录 JSON，全量比对（CISA 为权威源，字段按目录刷新）
+     * - EPSS：FIRST API 批量查询（100/批）
+     * - Band 重算：仅 source=API 且开关开启时（人工/Excel 的 Band 不动，
+     *   但 EPSS/KEV 字段本身对所有漏洞补全——字段是事实，Band 是决策）
+     */
+    private Map<String, Object> enrichRiskFields(boolean recalcBand) throws Exception {
+        Map<String, Object> result = new LinkedHashMap<>();
+        List<Vulnerability> all = vulnRepo.findAll().stream()
+                .filter(v -> Boolean.FALSE.equals(v.getDeleted()) && v.getCveId() != null).toList();
+
+        // --- CISA KEV 目录 ---
+        Set<String> kevSet = new HashSet<>();
+        HttpRequest kevReq = HttpRequest.newBuilder(URI.create(
+                "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"))
+                .timeout(Duration.ofSeconds(60)).GET().build();
+        HttpResponse<String> kevResp = http.send(kevReq, HttpResponse.BodyHandlers.ofString());
+        if (kevResp.statusCode() == 200) {
+            MAPPER.readTree(kevResp.body()).path("vulnerabilities")
+                    .forEach(v -> kevSet.add(v.path("cveID").asText()));
+        } else {
+            throw new RuntimeException("CISA KEV 目录下载失败 HTTP " + kevResp.statusCode());
+        }
+
+        // --- FIRST EPSS 批量查询 ---
+        Map<String, Double> epssMap = new HashMap<>();
+        List<String> cves = all.stream().map(Vulnerability::getCveId).distinct().toList();
+        for (int i = 0; i < cves.size(); i += 100) {
+            List<String> batch = cves.subList(i, Math.min(i + 100, cves.size()));
+            HttpRequest epssReq = HttpRequest.newBuilder(URI.create(
+                    "https://api.first.org/data/v1/epss?cve=" + String.join(",", batch)))
+                    .timeout(Duration.ofSeconds(30)).GET().build();
+            HttpResponse<String> epssResp = http.send(epssReq, HttpResponse.BodyHandlers.ofString());
+            if (epssResp.statusCode() == 200) {
+                MAPPER.readTree(epssResp.body()).path("data").forEach(d ->
+                        epssMap.put(d.path("cve").asText(), d.path("epss").asDouble()));
+            }
+        }
+
+        // --- 应用更新 ---
+        int epssUpdated = 0, kevUpdated = 0, bandRecalced = 0;
+        List<Vulnerability> toSave = new ArrayList<>();
+        for (Vulnerability v : all) {
+            boolean changed = false;
+            Double epss = epssMap.get(v.getCveId());
+            if (epss != null) {
+                BigDecimal bd = BigDecimal.valueOf(epss).setScale(5, java.math.RoundingMode.HALF_UP);
+                if (v.getEpssScore() == null || v.getEpssScore().compareTo(bd) != 0) {
+                    v.setEpssScore(bd); epssUpdated++; changed = true;
+                }
+            }
+            boolean kev = kevSet.contains(v.getCveId());
+            if ((v.getKev() == null || v.getKev()) != kev) {
+                v.setKev(kev); kevUpdated++; changed = true;
+            }
+            if (changed) {
+                // Band 重算仅限 API 来源（人工/Excel 的 Band 保留人工判定）
+                if (recalcBand && "API".equals(String.valueOf(v.getSource()))
+                        && v.getCvssScore() != null) {
+                    Vulnerability.Severity band = Vulnerability.computeBand(
+                            v.getCvssScore(), v.getEpssScore(), v.getKev());
+                    if (band != null && band != v.getSeverity()) {
+                        v.setSeverity(band); bandRecalced++;
+                    }
+                }
+                toSave.add(v);
+            }
+        }
+        if (!toSave.isEmpty()) vulnRepo.saveAll(toSave);
+
+        result.put("epssUpdated", epssUpdated);
+        result.put("kevUpdated", kevUpdated);
+        result.put("bandRecalced", bandRecalced);
+        result.put("kevCatalogSize", kevSet.size());
+        logger.info("EPSS/KEV 补全完成: epss={}, kev={}, band 重算={}", epssUpdated, kevUpdated, bandRecalced);
+        return result;
     }
 
     @SuppressWarnings("unchecked")
