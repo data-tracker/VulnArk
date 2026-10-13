@@ -215,7 +215,10 @@
               </a-form-item>
               <a-form-item label="自动置已解决">
                 <a-switch v-model="autoResolve" />
-                <span class="sync-hint">DTrack 不再报告时，将"待处理"的同步漏洞自动置为"已解决"（人工改过状态的绝不触碰）</span>
+                <div class="sync-hint" style="margin-top: 4px">
+              当组件升级后 DTrack 不再报告某 CVE 时，自动把它标记为"已解决"（附自动备注）。<br/>
+              仅作用于"待处理"且由同步创建的漏洞——人工录入、Excel 导入、以及已手动改过状态的漏洞一律不受影响。
+            </div>
               </a-form-item>
               <a-form-item label="刷新风险字段">
                 <a-switch v-model="refreshFields" />
