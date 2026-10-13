@@ -141,23 +141,37 @@ public class DTrackSyncService {
             boolean autoResolve = Boolean.parseBoolean(cfg("dtrack.auto_resolve"));
             boolean refresh = Boolean.parseBoolean(cfg("dtrack.refresh_fields"));
 
+            List<Map<String, Object>> addedDetail = new ArrayList<>();
+            List<Map<String, Object>> updatedDetail = new ArrayList<>();
+            List<Map<String, Object>> resolvedDetail = new ArrayList<>();
             for (Map.Entry<String, String> e : mapping.entrySet()) {
                 String dtrackName = e.getKey(), assetName = e.getValue();
                 try {
-                    int[] r = syncOne(dtrackName, assetName, autoResolve, refresh);
+                    Map<String, Object> r = syncOne(dtrackName, assetName, autoResolve, refresh);
                     details.add(String.format("%s -> %s：新增%d 更新%d 置已解决%d 失败%d",
-                            dtrackName, assetName, r[0], r[1], r[2], r[3]));
-                    log.setAdded(log.getAdded() + r[0]);
-                    log.setUpdated(log.getUpdated() + r[1]);
-                    log.setResolved(log.getResolved() + r[2]);
-                    log.setFailed(log.getFailed() + r[3]);
+                            dtrackName, assetName,
+                            (Integer) r.get("added"), (Integer) r.get("updated"),
+                            (Integer) r.get("resolved"), (Integer) r.get("failed")));
+                    log.setAdded(log.getAdded() + (Integer) r.get("added"));
+                    log.setUpdated(log.getUpdated() + (Integer) r.get("updated"));
+                    log.setResolved(log.getResolved() + (Integer) r.get("resolved"));
+                    log.setFailed(log.getFailed() + (Integer) r.get("failed"));
+                    addedDetail.addAll((List<Map<String, Object>>) r.get("addedList"));
+                    updatedDetail.addAll((List<Map<String, Object>>) r.get("updatedList"));
+                    resolvedDetail.addAll((List<Map<String, Object>>) r.get("resolvedList"));
                 } catch (Exception ex) {
                     log.setFailed(log.getFailed() + 1);
                     details.add(dtrackName + " -> " + assetName + "：失败 " + ex.getMessage());
                 }
             }
             if (mapping.isEmpty()) details.add("映射表为空，未同步任何项目");
-            log.setDetail(String.join("\n", details));
+            // detail 存 JSON：摘要 + 各类变更的 CVE 明细（前端展开显示）
+            Map<String, Object> detailJson = new LinkedHashMap<>();
+            detailJson.put("summary", String.join("\n", details));
+            detailJson.put("added", addedDetail);
+            detailJson.put("updated", updatedDetail);
+            detailJson.put("resolved", resolvedDetail);
+            log.setDetail(MAPPER.writeValueAsString(detailJson));
         } catch (Exception e) {
             log.setFailed(log.getFailed() + 1);
             log.setDetail("同步失败: " + e.getMessage());
@@ -174,9 +188,13 @@ public class DTrackSyncService {
         return MAPPER.readValue(raw, Map.class);
     }
 
-    /** 同步单个映射：返回 [新增, 更新, 置已解决, 失败] */
-    private int[] syncOne(String dtrackName, String assetName,
+    /** 同步单个映射：返回计数与 CVE 级明细 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> syncOne(String dtrackName, String assetName,
                           boolean autoResolve, boolean refresh) throws Exception {
+        List<Map<String, Object>> addedList = new ArrayList<>();
+        List<Map<String, Object>> updatedList = new ArrayList<>();
+        List<Map<String, Object>> resolvedList = new ArrayList<>();
         // 目标资产必须存在（白名单右值）
         Asset asset = assetRepo.findAll().stream()
                 .filter(a -> assetName.equals(a.getName())).findFirst()
@@ -234,10 +252,19 @@ public class DTrackSyncService {
                     Vulnerability v = buildVulnerability(cveId, dv, ci, asset);
                     vulnRepo.save(v);
                     added++;
+                    Map<String, Object> d = new LinkedHashMap<>();
+                    d.put("cve", cveId); d.put("title", v.getTitle());
+                    d.put("severity", String.valueOf(v.getSeverity()));
+                    addedList.add(d);
                 } else if (refresh && "API".equals(cur.getSource())) {
                     // 仅刷新 API 同步来源的漏洞（人工/Excel 的不动）
                     boolean changed = applyRiskFields(cur, dv);
-                    if (changed) { vulnRepo.save(cur); updated++; }
+                    if (changed) {
+                        vulnRepo.save(cur); updated++;
+                        Map<String, Object> d = new LinkedHashMap<>();
+                        d.put("cve", cveId); d.put("severity", String.valueOf(cur.getSeverity()));
+                        updatedList.add(d);
+                    }
                 }
             } catch (Exception ex) {
                 failed++;
@@ -259,6 +286,9 @@ public class DTrackSyncService {
                     v.setSolution(v.getSolution() == null ? note : note + "\n\n" + v.getSolution());
                     vulnRepo.save(v);
                     resolvedN++;
+                    Map<String, Object> d = new LinkedHashMap<>();
+                    d.put("cve", v.getCveId()); d.put("title", v.getTitle());
+                    resolvedList.add(d);
                 }
             }
         }
@@ -268,7 +298,13 @@ public class DTrackSyncService {
         } catch (Exception e) {
             logger.warn("资产统计刷新失败: {}", e.getMessage());
         }
-        return new int[]{added, updated, resolvedN, failed};
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("added", added); result.put("updated", updated);
+        result.put("resolved", resolvedN); result.put("failed", failed);
+        result.put("addedList", addedList);
+        result.put("updatedList", updatedList);
+        result.put("resolvedList", resolvedList);
+        return result;
     }
 
     private Vulnerability buildVulnerability(String cveId, JsonNode dv, String[] ci, Asset asset) {
