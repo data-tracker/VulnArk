@@ -237,14 +237,31 @@
               <a-button @click="loadSyncStatus">刷新状态</a-button>
             </a-space>
             <div v-if="syncLogs.length" class="sync-logs">
-              <div v-for="log in syncLogs" :key="log.id" class="sync-log-item">
-                <span class="sync-log-time">{{ formatSyncTime(log.syncTime) }}</span>
-                <a-tag size="small" :color="log.triggerType === 'AUTO' ? 'blue' : 'green'">
-                  {{ log.triggerType === 'AUTO' ? '定时' : '手动' }}
-                </a-tag>
-                <span class="sync-log-summary">
-                  新增 {{ log.added }} · 更新 {{ log.updated }} · 置已解决 {{ log.resolved }} · 失败 {{ log.failed }}
-                </span>
+              <div v-for="log in syncLogs" :key="log.id" class="sync-log-entry">
+                <div class="sync-log-item" @click="toggleLogDetail(log)">
+                  <span class="sync-log-time">{{ formatSyncTime(log.syncTime) }}</span>
+                  <a-tag size="small" :color="log.triggerType === 'AUTO' ? 'blue' : 'green'">
+                    {{ log.triggerType === 'AUTO' ? '定时' : '手动' }}
+                  </a-tag>
+                  <span class="sync-log-summary">
+                    新增 {{ log.added }} · 更新 {{ log.updated }} · 置已解决 {{ log.resolved }} · 失败 {{ log.failed }}
+                  </span>
+                  <span v-if="parseLogDetail(log)" class="sync-log-toggle">{{ log._open ? '收起' : '明细' }}</span>
+                </div>
+                <div v-if="log._open && parseLogDetail(log)" class="sync-log-detail">
+                  <div v-if="parseLogDetail(log).added?.length">
+                    <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
+                    <div v-for="(d, k) in parseLogDetail(log).added" :key="'a'+k" class="detail-row">{{ d.cve }} · {{ d.severity }} · {{ d.title }}</div>
+                  </div>
+                  <div v-if="parseLogDetail(log).resolved?.length">
+                    <div class="detail-group-title">置已解决（{{ parseLogDetail(log).resolved.length }}）</div>
+                    <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row">{{ d.cve }} · {{ d.title }}</div>
+                  </div>
+                  <div v-if="parseLogDetail(log).updated?.length">
+                    <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
+                    <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">{{ d.cve }} · {{ d.severity }}</div>
+                  </div>
+                </div>
               </div>
             </div>
             <p v-else class="sync-hint">暂无同步记录</p>
@@ -530,6 +547,16 @@ const triggerSync = async () => {
 
 const formatSyncTime = (t: string) => (t ? String(t).replace('T', ' ').slice(0, 19) : '-')
 
+const toggleLogDetail = (log: any) => { log._open = !log._open }
+const parseLogDetail = (log: any): any => {
+  if (log._parsed !== undefined) return log._parsed
+  try {
+    const d = JSON.parse(log.detail || '')
+    log._parsed = (d && (d.added || d.resolved || d.updated)) ? d : null
+  } catch { log._parsed = null }
+  return log._parsed
+}
+
 // ===== 初始化 =====
 watch(activeTab, (tab) => {
   if (tab === 'sync' && isAdmin.value) initSyncTab()
@@ -750,7 +777,13 @@ onMounted(async () => {
 .mapping-arrow { color: #94a3b8; }
 .sync-hint { font-size: 12px; color: #94a3b8; margin: 4px 0; }
 .sync-logs { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.sync-log-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.sync-log-entry { border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.sync-log-item { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+.sync-log-item:hover { background: var(--surface-hover); }
+.sync-log-toggle { color: var(--primary-600); font-size: 12px; margin-left: auto; }
+.sync-log-detail { margin: 6px 0 8px 0; padding: 10px; background: var(--surface-hover); border-radius: 6px; max-height: 260px; overflow-y: auto; font-size: 12px; }
+.detail-group-title { font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
+.detail-row { color: var(--text-secondary, #64748b); padding: 2px 0 2px 12px; }
 .sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }
 .sync-log-summary { color: var(--text-primary); }
 </style>
