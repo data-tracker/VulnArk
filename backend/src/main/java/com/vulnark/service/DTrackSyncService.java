@@ -365,13 +365,21 @@ public class DTrackSyncService {
                 } else if (refresh) {
                     // 统一更新策略：所有已存在 CVE 均比对并刷新 CVSS/级别/Band
                     // （人工判定与分析内容：分析状态/处置状态/负责人/解决方案不碰）
+                    String oldLevel = cur.getCvssLevel() == null ? "-" : String.valueOf(cur.getCvssLevel());
+                    String oldScore = cur.getCvssScore() == null ? "-" : String.valueOf(cur.getCvssScore());
+                    String oldBand = String.valueOf(cur.getSeverity());
                     boolean changed = applyRiskFields(cur, dv);
                     if (changed) {
                         vulnRepo.save(cur); updated++;
+                        // 明细记录变化前后值（from -> to），便于追溯
                         Map<String, Object> d = new LinkedHashMap<>();
                         d.put("cve", cveId);
-                        d.put("cvssLevel", cur.getCvssLevel() == null ? "-" : String.valueOf(cur.getCvssLevel()));
-                        d.put("band", String.valueOf(cur.getSeverity()));
+                        String newLevel = cur.getCvssLevel() == null ? "-" : String.valueOf(cur.getCvssLevel());
+                        String newScore = cur.getCvssScore() == null ? "-" : String.valueOf(cur.getCvssScore());
+                        String newBand = String.valueOf(cur.getSeverity());
+                        d.put("cvssLevel", oldLevel.equals(newLevel) ? newLevel : oldLevel + "→" + newLevel);
+                        d.put("cvssScore", oldScore.equals(newScore) ? newScore : oldScore + "→" + newScore);
+                        d.put("band", oldBand.equals(newBand) ? newBand : oldBand + "→" + newBand);
                         updatedList.add(d);
                     }
                 }

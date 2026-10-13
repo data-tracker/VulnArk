@@ -301,10 +301,10 @@
                     <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
                     <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
                     <div class="detail-head">
-                      <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span>
+                      <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span></span>
                     </div>
                     <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">
-                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
+                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span></span>
                     </div>
                   </div>
                 </div>
