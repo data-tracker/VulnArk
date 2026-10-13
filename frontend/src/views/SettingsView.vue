@@ -575,6 +575,7 @@ const bandSummary = (list: any[]): string => {
     counts[b] = (counts[b] || 0) + 1
   })
   return order.filter(k => counts[k]).map(k => `${k} ${counts[k]}`).join(' · ') || '-'
+}
 const parseLogDetail = (log: any): any => {
   if (log._parsed !== undefined) return log._parsed
   try {
