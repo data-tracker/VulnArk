@@ -241,6 +241,7 @@ public class DTrackSyncService {
 
         // --- 应用更新 ---
         int epssUpdated = 0, kevUpdated = 0, bandRecalced = 0;
+        List<Map<String, Object>> bandRecalcedList = new ArrayList<>();
         List<Vulnerability> toSave = new ArrayList<>();
         for (Vulnerability v : all) {
             boolean changed = false;
@@ -255,16 +256,22 @@ public class DTrackSyncService {
             if ((v.getKev() == null || v.getKev()) != kev) {
                 v.setKev(kev); kevUpdated++; changed = true;
             }
-            if (changed) {
-                // Band 重算仅限 API 来源（人工/Excel 的 Band 保留人工判定）
-                if (recalcBand && "API".equals(String.valueOf(v.getSource()))
-                        && v.getCvssScore() != null) {
-                    Vulnerability.Severity band = Vulnerability.computeBand(
-                            v.getCvssScore(), v.getEpssScore(), v.getKev());
-                    if (band != null && band != v.getSeverity()) {
-                        v.setSeverity(band); bandRecalced++;
-                    }
+            // 统一更新策略：Band 全量重算（不受字段是否变化限制——存量漏洞
+            // 即使 EPSS/KEV 无更新，也可能存在旧人工 Band 与最新数据不一致）
+            if (recalcBand && v.getCvssScore() != null) {
+                Vulnerability.Severity band = Vulnerability.computeBand(
+                        v.getCvssScore(), v.getEpssScore(), v.getKev());
+                if (band != null && band != v.getSeverity()) {
+                    Map<String, Object> bd = new LinkedHashMap<>();
+                    bd.put("cve", v.getCveId());
+                    bd.put("from", String.valueOf(v.getSeverity()));
+                    bd.put("to", String.valueOf(band));
+                    bandRecalcedList.add(bd);
+                    v.setSeverity(band); bandRecalced++;
+                    changed = true;
                 }
+            }
+            if (changed) {
                 toSave.add(v);
             }
         }
@@ -273,6 +280,7 @@ public class DTrackSyncService {
         result.put("epssUpdated", epssUpdated);
         result.put("kevUpdated", kevUpdated);
         result.put("bandRecalced", bandRecalced);
+        result.put("bandRecalcedList", bandRecalcedList);
         result.put("kevCatalogSize", kevSet.size());
         logger.info("EPSS/KEV 补全完成: epss={}, kev={}, band 重算={}", epssUpdated, kevUpdated, bandRecalced);
         return result;
@@ -354,8 +362,9 @@ public class DTrackSyncService {
                     d.put("cvssLevel", v.getCvssLevel() == null ? "-" : String.valueOf(v.getCvssLevel()));
                     d.put("band", String.valueOf(v.getSeverity()));
                     addedList.add(d);
-                } else if (refresh && "API".equals(cur.getSource())) {
-                    // 仅刷新 API 同步来源的漏洞（人工/Excel 的不动）
+                } else if (refresh) {
+                    // 统一更新策略：所有已存在 CVE 均比对并刷新 CVSS/级别/Band
+                    // （人工判定与分析内容：分析状态/处置状态/负责人/解决方案不碰）
                     boolean changed = applyRiskFields(cur, dv);
                     if (changed) {
                         vulnRepo.save(cur); updated++;

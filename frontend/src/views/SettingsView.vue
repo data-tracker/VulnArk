@@ -229,7 +229,11 @@
           </a-form-item>
               <a-form-item label="刷新风险字段">
                 <a-switch v-model="refreshFields" />
-                <span class="sync-hint">刷新 CVSS/EPSS/KEV 并重算 Band（仅对同步创建的漏洞，人工/Excel 数据不受影响）</span>
+                <div class="sync-hint" style="margin-top: 4px">
+              比对并刷新所有已存在 CVE 的 CVSS 级别/分数/EPSS/KEV，并按 CRA 规则重算 Band——
+              包括人工/Excel 导入的数据，保证资产体现最新风险状态。<br/>
+              人工判定与分析内容（分析状态/处置状态/负责人/解决方案）永不覆盖。
+            </div>
               </a-form-item>
             </a-form>
             <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
@@ -284,6 +288,14 @@
                       <span>结果</span>
                       <span>EPSS 更新 {{ parseLogDetail(log).enrich.epssUpdated ?? 0 }} · KEV 更新 {{ parseLogDetail(log).enrich.kevUpdated ?? 0 }} · Band 重算 {{ parseLogDetail(log).enrich.bandRecalced ?? 0 }}（KEV 目录 {{ parseLogDetail(log).enrich.kevCatalogSize ?? '-' }} 条）</span>
                     </div>
+                    <template v-if="parseLogDetail(log).enrich.bandRecalcedList?.length">
+                      <div class="detail-head">
+                        <span>CVE 编号</span><span>原 Band</span><span>新 Band</span><span></span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b'+k" class="detail-row">
+                        <span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: var(--primary-600)">{{ d.to }}</span><span></span>
+                      </div>
+                    </template>
                   </div>
                   <div v-if="parseLogDetail(log).updated?.length">
                     <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
