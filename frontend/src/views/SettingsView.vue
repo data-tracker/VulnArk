@@ -251,15 +251,30 @@
                 <div v-if="log._open && parseLogDetail(log)" class="sync-log-detail">
                   <div v-if="parseLogDetail(log).added?.length">
                     <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
-                    <div v-for="(d, k) in parseLogDetail(log).added" :key="'a'+k" class="detail-row">{{ d.cve }} · {{ d.severity }} · {{ d.title }}</div>
+                    <div class="detail-head">
+                      <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+                    </div>
+                    <div v-for="(d, k) in parseLogDetail(log).added" :key="'a'+k" class="detail-row">
+                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band }}</span><span>{{ d.title }}</span>
+                    </div>
                   </div>
                   <div v-if="parseLogDetail(log).resolved?.length">
                     <div class="detail-group-title">置已解决（{{ parseLogDetail(log).resolved.length }}）</div>
-                    <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row">{{ d.cve }} · {{ d.title }}</div>
+                    <div class="detail-head two">
+                      <span>CVE 编号</span><span>标题</span>
+                    </div>
+                    <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row two">
+                      <span>{{ d.cve }}</span><span>{{ d.title }}</span>
+                    </div>
                   </div>
                   <div v-if="parseLogDetail(log).updated?.length">
                     <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
-                    <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">{{ d.cve }} · {{ d.severity }}</div>
+                    <div class="detail-head">
+                      <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span>
+                    </div>
+                    <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">
+                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -783,7 +798,10 @@ onMounted(async () => {
 .sync-log-toggle { color: var(--primary-600); font-size: 12px; margin-left: auto; }
 .sync-log-detail { margin: 6px 0 8px 0; padding: 10px; background: var(--surface-hover); border-radius: 6px; max-height: 260px; overflow-y: auto; font-size: 12px; }
 .detail-group-title { font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
-.detail-row { color: var(--text-secondary, #64748b); padding: 2px 0 2px 12px; }
+.detail-head, .detail-row { display: grid; grid-template-columns: 150px 90px 90px 1fr; gap: 8px; padding: 2px 12px; }
+.detail-head { color: var(--text-primary); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.detail-row { color: var(--text-secondary, #64748b); }
 .sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }
 .sync-log-summary { color: var(--text-primary); }
+.detail-head.two, .detail-row.two { grid-template-columns: 150px 1fr; }
 </style>

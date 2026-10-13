@@ -106,10 +106,11 @@ public class DTrackSyncService {
         try {
             String freq = cfg("dtrack.frequency");
             if ("off".equals(freq) || !isConfigured() || running) return;
-            LocalDateTime last = syncLogRepo.findAllByOrderBySyncTimeDesc(
-                            org.springframework.data.domain.PageRequest.of(0, 1)).stream()
-                    .filter(l -> "AUTO".equals(l.getTriggerType()))
-                    .findFirst().map(SyncLog::getSyncTime).orElse(null);
+            // 注意：必须查最近一次 AUTO 记录（此前写法先取最近1条再过滤，
+            // 手动同步后会误判 last=null 而触发多余的定时同步）
+            LocalDateTime last = syncLogRepo
+                    .findFirstByTriggerTypeOrderBySyncTimeDesc("AUTO")
+                    .map(SyncLog::getSyncTime).orElse(null);
             boolean due = false;
             if (last == null) {
                 due = true;
@@ -254,7 +255,8 @@ public class DTrackSyncService {
                     added++;
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("cve", cveId); d.put("title", v.getTitle());
-                    d.put("severity", String.valueOf(v.getSeverity()));
+                    d.put("cvssLevel", v.getCvssLevel() == null ? "-" : String.valueOf(v.getCvssLevel()));
+                    d.put("band", String.valueOf(v.getSeverity()));
                     addedList.add(d);
                 } else if (refresh && "API".equals(cur.getSource())) {
                     // 仅刷新 API 同步来源的漏洞（人工/Excel 的不动）
@@ -262,7 +264,9 @@ public class DTrackSyncService {
                     if (changed) {
                         vulnRepo.save(cur); updated++;
                         Map<String, Object> d = new LinkedHashMap<>();
-                        d.put("cve", cveId); d.put("severity", String.valueOf(cur.getSeverity()));
+                        d.put("cve", cveId);
+                        d.put("cvssLevel", cur.getCvssLevel() == null ? "-" : String.valueOf(cur.getCvssLevel()));
+                        d.put("band", String.valueOf(cur.getSeverity()));
                         updatedList.add(d);
                     }
                 }
