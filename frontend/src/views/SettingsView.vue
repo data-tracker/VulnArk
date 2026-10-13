@@ -251,6 +251,7 @@
                 <div v-if="log._open && parseLogDetail(log)" class="sync-log-detail">
                   <div v-if="parseLogDetail(log).added?.length">
                     <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
+                    <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).added) }}</div>
                     <div class="detail-head">
                       <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
                     </div>
@@ -269,6 +270,7 @@
                   </div>
                   <div v-if="parseLogDetail(log).updated?.length">
                     <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
+                    <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
                     <div class="detail-head">
                       <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span>
                     </div>
@@ -563,6 +565,16 @@ const triggerSync = async () => {
 const formatSyncTime = (t: string) => (t ? String(t).replace('T', ' ').slice(0, 19) : '-')
 
 const toggleLogDetail = (log: any) => { log._open = !log._open }
+// Band 分布统计：按 EMERGENCY>CRITICAL>HIGH>MEDIUM>LOW 顺序输出有值的级别
+const bandSummary = (list: any[]): string => {
+  if (!list || !list.length) return '-'
+  const order = ['EMERGENCY', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+  const counts: Record<string, number> = {}
+  list.forEach(d => {
+    const b = d.band || d.severity || '-'
+    counts[b] = (counts[b] || 0) + 1
+  })
+  return order.filter(k => counts[k]).map(k => `${k} ${counts[k]}`).join(' · ') || '-'
 const parseLogDetail = (log: any): any => {
   if (log._parsed !== undefined) return log._parsed
   try {
@@ -800,6 +812,7 @@ onMounted(async () => {
 .detail-group-title { font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
 .detail-head, .detail-row { display: grid; grid-template-columns: 150px 90px 90px 1fr; gap: 8px; padding: 2px 12px; }
 .detail-head { color: var(--text-primary); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.detail-band-summary { color: var(--primary-600); font-size: 12px; margin: 2px 0 6px 12px; }
 .detail-row { color: var(--text-secondary, #64748b); }
 .sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }
 .sync-log-summary { color: var(--text-primary); }
