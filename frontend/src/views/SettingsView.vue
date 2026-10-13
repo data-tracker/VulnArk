@@ -447,7 +447,17 @@ const initSyncTab = async () => {
         if (grouped.dtrack[k] !== undefined) syncForm[k] = grouped.dtrack[k]
       })
     }
-    try { syncMapping.value = JSON.parse(syncForm['dtrack.mapping'] || '[]') } catch { syncMapping.value = [] }
+    try {
+      const parsed = JSON.parse(syncForm['dtrack.mapping'] || '[]')
+      if (Array.isArray(parsed)) {
+        syncMapping.value = parsed
+      } else if (parsed && typeof parsed === 'object') {
+        // 历史对象格式（{"DTrack项目":"资产"}）转换为行数组
+        syncMapping.value = Object.entries(parsed).map(([dt, asset]) => ({ dt, asset }))
+      } else {
+        syncMapping.value = []
+      }
+    } catch { syncMapping.value = [] }
   } catch { /* 忽略 */ }
   loadSyncAssets()
   loadSyncStatus()
@@ -464,7 +474,10 @@ const loadSyncAssets = async () => {
 const saveSyncConfig = async () => {
   savingSync.value = true
   try {
-    syncForm['dtrack.mapping'] = JSON.stringify(syncMapping.value.filter(m => m.dt && m.asset))
+    const pairs = syncMapping.value.filter(m => m.dt && m.asset)
+    const obj: Record<string, string> = {}
+    pairs.forEach(m => { obj[m.dt] = m.asset })
+    syncForm['dtrack.mapping'] = JSON.stringify(obj)
     const payload: Record<string, string> = {}
     Object.entries(syncForm).forEach(([k, v]) => { payload[k] = String(v ?? '') })
     await saveSystemConfigs(payload)
