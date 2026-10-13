@@ -255,7 +255,7 @@
                       <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
                     </div>
                     <div v-for="(d, k) in parseLogDetail(log).added" :key="'a'+k" class="detail-row">
-                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band }}</span><span>{{ d.title }}</span>
+                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
                     </div>
                   </div>
                   <div v-if="parseLogDetail(log).resolved?.length">
@@ -273,7 +273,7 @@
                       <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span>
                     </div>
                     <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">
-                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band }}</span>
+                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
                     </div>
                   </div>
                 </div>
