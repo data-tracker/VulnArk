@@ -259,53 +259,93 @@
                   </span>
                   <span v-if="parseLogDetail(log)" class="sync-log-toggle">{{ log._open ? '收起' : '明细' }}</span>
                 </div>
-                <div v-if="log._open && parseLogDetail(log)" class="sync-log-detail">
-                  <div v-if="parseLogDetail(log).added?.length">
-                    <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
-                    <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).added) }}</div>
-                    <div class="detail-head">
-                      <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+<div v-if="log._open && parseLogDetail(log)" class="sync-log-detail">
+                  <template v-if="parseLogDetail(log).assets">
+                    <div v-for="(block, assetName) in parseLogDetail(log).assets" :key="assetName" class="asset-block">
+                      <div class="asset-block-title">{{ assetName }}<span class="asset-block-summary">{{ block.summary }}</span></div>
+                      <div v-if="block.added?.length">
+                        <div class="detail-group-title">新增（{{ block.added.length }}）</div>
+                        <div class="detail-band-summary">Band 分布：{{ bandSummary(block.added) }}</div>
+                        <div class="detail-head">
+                          <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+                        </div>
+                        <div v-for="(d, k) in block.added" :key="'a'+k" class="detail-row">
+                          <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
+                        </div>
+                      </div>
+                      <div v-if="block.resolved?.length">
+                        <div class="detail-group-title">置已解决（{{ block.resolved.length }}）</div>
+                        <div class="detail-head">
+                          <span>CVE 编号</span><span>标题</span><span></span><span></span>
+                        </div>
+                        <div v-for="(d, k) in block.resolved" :key="'r'+k" class="detail-row">
+                          <span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span><span></span>
+                        </div>
+                      </div>
+                      <div v-if="block.updated?.length">
+                        <div class="detail-group-title">更新（{{ block.updated.length }}）</div>
+                        <div class="detail-band-summary">Band 分布：{{ bandSummary(block.updated) }}</div>
+                        <div class="detail-head">
+                          <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span>
+                        </div>
+                        <div v-for="(d, k) in block.updated" :key="'u'+k" class="detail-row">
+                          <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
+                        </div>
+                      </div>
+                      <div v-if="!block.added?.length && !block.updated?.length && !block.resolved?.length" class="detail-row">
+                        <span>无变更</span><span></span><span></span><span></span>
+                      </div>
                     </div>
-                    <div v-for="(d, k) in parseLogDetail(log).added" :key="'a'+k" class="detail-row">
-                      <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
+                  </template>
+                  <template v-else>
+                    <div v-if="parseLogDetail(log).added?.length">
+                      <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
+                      <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).added) }}</div>
+                      <div class="detail-head">
+                        <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).added" :key="'a2'+k" class="detail-row">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div v-if="parseLogDetail(log).resolved?.length">
-                    <div class="detail-group-title">置已解决（{{ parseLogDetail(log).resolved.length }}）</div>
-                    <div class="detail-head">
-                      <span>资产</span><span>CVE 编号</span><span>标题</span><span></span>
+                    <div v-if="parseLogDetail(log).resolved?.length">
+                      <div class="detail-group-title">置已解决（{{ parseLogDetail(log).resolved.length }}）</div>
+                      <div class="detail-head">
+                        <span>资产</span><span>CVE 编号</span><span>标题</span><span></span><span></span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r2'+k" class="detail-row">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span><span></span>
+                      </div>
                     </div>
-                    <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row">
-                      <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span>
+                    <div v-if="parseLogDetail(log).updated?.length">
+                      <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
+                      <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
+                      <div class="detail-head">
+                        <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u2'+k" class="detail-row">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
+                      </div>
                     </div>
-                  </div>
+                  </template>
                   <div v-if="parseLogDetail(log).enrich">
-                    <div class="detail-group-title">EPSS/KEV 补全</div>
-                    <div class="detail-row two" v-if="parseLogDetail(log).enrich.error" style="color:#dc2626">
-                      <span>失败</span><span>{{ parseLogDetail(log).enrich.error }}</span>
+                    <div class="detail-group-title">EPSS/KEV 补全（全库）</div>
+                    <div class="detail-row" v-if="parseLogDetail(log).enrich.error" style="color:#dc2626">
+                      <span>失败</span><span>{{ parseLogDetail(log).enrich.error }}</span><span></span><span></span>
                     </div>
-                    <div class="detail-row two" v-else>
+                    <div class="detail-row" v-else>
                       <span>结果</span>
                       <span>EPSS 更新 {{ parseLogDetail(log).enrich.epssUpdated ?? 0 }} · KEV 更新 {{ parseLogDetail(log).enrich.kevUpdated ?? 0 }} · Band 重算 {{ parseLogDetail(log).enrich.bandRecalced ?? 0 }}（KEV 目录 {{ parseLogDetail(log).enrich.kevCatalogSize ?? '-' }} 条）</span>
+                      <span></span><span></span>
                     </div>
                     <template v-if="parseLogDetail(log).enrich.bandRecalcedList?.length">
                       <div class="detail-head">
                         <span>资产</span><span>CVE 编号</span><span>原 Band</span><span>新 Band</span>
                       </div>
-                      <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b'+k" class="detail-row">
+                      <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b2'+k" class="detail-row">
                         <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: var(--primary-600)">{{ d.to }}</span>
                       </div>
                     </template>
-                  </div>
-                  <div v-if="parseLogDetail(log).updated?.length">
-                    <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
-                    <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
-                    <div class="detail-head">
-                      <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span>
-                    </div>
-                    <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">
-                      <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -847,6 +887,9 @@ onMounted(async () => {
 .detail-group-title { font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
 .detail-head, .detail-row { display: grid; grid-template-columns: 110px 150px 100px 90px 1fr; gap: 8px; padding: 2px 12px; }
 .detail-head { color: var(--text-primary); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.asset-block { margin-bottom: 12px; }
+.asset-block-title { font-weight: 600; color: var(--primary-600); margin: 8px 0 4px; font-size: 13px; }
+.asset-block-summary { font-weight: 400; color: var(--text-secondary, #64748b); margin-left: 10px; font-size: 12px; }
 .detail-band-summary { color: var(--primary-600); font-size: 12px; margin: 2px 0 6px 12px; }
 .detail-row { color: var(--text-secondary, #64748b); }
 .sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }

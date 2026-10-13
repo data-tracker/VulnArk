@@ -145,26 +145,33 @@ public class DTrackSyncService {
             boolean autoResolve = Boolean.parseBoolean(cfg("dtrack.auto_resolve"));
             boolean refresh = Boolean.parseBoolean(cfg("dtrack.refresh_fields"));
 
-            List<Map<String, Object>> addedDetail = new ArrayList<>();
-            List<Map<String, Object>> updatedDetail = new ArrayList<>();
-            List<Map<String, Object>> resolvedDetail = new ArrayList<>();
+            // 明细按资产分块组织：资产名 -> {summary, added, updated, resolved}
+            Map<String, Object> assetsDetail = new LinkedHashMap<>();
             for (Map.Entry<String, String> e : mapping.entrySet()) {
                 String dtrackName = e.getKey(), assetName = e.getValue();
+                Map<String, Object> block = new LinkedHashMap<>();
+                block.put("summary", "");
+                block.put("added", new ArrayList<Map<String, Object>>());
+                block.put("updated", new ArrayList<Map<String, Object>>());
+                block.put("resolved", new ArrayList<Map<String, Object>>());
+                assetsDetail.put(assetName, block);
                 try {
                     Map<String, Object> r = syncOne(dtrackName, assetName, autoResolve, refresh);
-                    details.add(String.format("%s -> %s：新增%d 更新%d 置已解决%d 失败%d",
-                            dtrackName, assetName,
+                    String line = String.format("新增%d 更新%d 置已解决%d 失败%d",
                             (Integer) r.get("added"), (Integer) r.get("updated"),
-                            (Integer) r.get("resolved"), (Integer) r.get("failed")));
+                            (Integer) r.get("resolved"), (Integer) r.get("failed"));
+                    details.add(String.format("%s -> %s：%s", dtrackName, assetName, line));
+                    block.put("summary", line);
                     log.setAdded(log.getAdded() + (Integer) r.get("added"));
                     log.setUpdated(log.getUpdated() + (Integer) r.get("updated"));
                     log.setResolved(log.getResolved() + (Integer) r.get("resolved"));
                     log.setFailed(log.getFailed() + (Integer) r.get("failed"));
-                    addedDetail.addAll((List<Map<String, Object>>) r.get("addedList"));
-                    updatedDetail.addAll((List<Map<String, Object>>) r.get("updatedList"));
-                    resolvedDetail.addAll((List<Map<String, Object>>) r.get("resolvedList"));
+                    block.put("added", r.get("addedList"));
+                    block.put("updated", r.get("updatedList"));
+                    block.put("resolved", r.get("resolvedList"));
                 } catch (Exception ex) {
                     log.setFailed(log.getFailed() + 1);
+                    block.put("summary", "失败 " + ex.getMessage());
                     details.add(dtrackName + " -> " + assetName + "：失败 " + ex.getMessage());
                 }
             }
@@ -185,9 +192,7 @@ public class DTrackSyncService {
             // detail 存 JSON：摘要 + 各类变更的 CVE 明细（前端展开显示）
             Map<String, Object> detailJson = new LinkedHashMap<>();
             detailJson.put("summary", String.join("\n", details));
-            detailJson.put("added", addedDetail);
-            detailJson.put("updated", updatedDetail);
-            detailJson.put("resolved", resolvedDetail);
+            detailJson.put("assets", assetsDetail);
             if (enrichResult != null) detailJson.put("enrich", enrichResult);
             log.setDetail(MAPPER.writeValueAsString(detailJson));
         } catch (Exception e) {
