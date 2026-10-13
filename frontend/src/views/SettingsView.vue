@@ -164,92 +164,93 @@
           </div>
         </div>
 
-      </div>
-    </div>
+        <!-- 数据同步（ADMIN） -->
+        <div v-if="activeTab === 'sync' && isAdmin" class="content-panel">
+          <div class="panel-card">
+            <h3 class="panel-title">Dependency-Track 连接</h3>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="API 地址">
+                <a-input v-model="syncForm['dtrack.url']" placeholder="http://192.168.20.162:8081" />
+              </a-form-item>
+              <a-form-item label="API Key">
+                <a-input-password v-model="syncForm['dtrack.api_key']" placeholder="Dependency-Track API Key" />
+              </a-form-item>
+            </a-form>
+            <a-space>
+              <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存连接配置</a-button>
+              <a-button status="success" :loading="testingSync" @click="testSync">测试连接</a-button>
+              <span v-if="testResult" :style="{ color: testResult.ok ? '#16a34a' : '#dc2626', fontSize: '12px' }">
+                {{ testResult.ok ? `连接成功（${testResult.projectCount} 个项目）` : `失败: ${testResult.message}` }}
+              </span>
+            </a-space>
+          </div>
 
-    <!-- 数据同步（ADMIN） -->
-    <div v-if="activeTab === 'sync' && isAdmin" class="content-panel">
-      <div class="panel-card">
-        <h3 class="panel-title">Dependency-Track 连接</h3>
-        <a-form layout="vertical" class="form-narrow">
-          <a-form-item label="API 地址">
-            <a-input v-model="syncForm['dtrack.url']" placeholder="http://192.168.20.162:8081" />
-          </a-form-item>
-          <a-form-item label="API Key">
-            <a-input-password v-model="syncForm['dtrack.api_key']" placeholder="Dependency-Track API Key" />
-          </a-form-item>
-        </a-form>
-        <a-space>
-          <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存连接配置</a-button>
-          <a-button status="success" :loading="testingSync" @click="testSync">测试连接</a-button>
-          <span v-if="testResult" :style="{ color: testResult.ok ? '#16a34a' : '#dc2626', fontSize: '12px' }">
-            {{ testResult.ok ? `连接成功（${testResult.projectCount} 个项目）` : `失败: ${testResult.message}` }}
-          </span>
-        </a-space>
-      </div>
+          <div class="panel-card">
+            <h3 class="panel-title">项目映射（同步白名单）</h3>
+            <p class="sync-hint">仅同步已配置映射的项目；删除映射即停止同步（已同步数据保留）</p>
+            <div v-for="(m, i) in syncMapping" :key="i" class="mapping-row">
+              <a-input v-model="m.dt" placeholder="DTrack 项目名" style="flex: 1" />
+              <span class="mapping-arrow">→</span>
+              <a-select v-model="m.asset" placeholder="VulnArk 资产" style="flex: 1" allow-clear>
+                <a-option v-for="a in syncAssets" :key="a.id" :value="a.name">{{ a.name }}</a-option>
+              </a-select>
+              <a-button status="danger" size="small" @click="syncMapping.splice(i, 1)">删除</a-button>
+            </div>
+            <a-space style="margin-top: 8px">
+              <a-button size="small" @click="syncMapping.push({ dt: '', asset: '' })">+ 添加映射</a-button>
+              <a-button size="small" :loading="matching" @click="autoMatch">同名自动匹配</a-button>
+              <a-button type="primary" size="small" :loading="savingSync" @click="saveSyncConfig">保存映射</a-button>
+            </a-space>
+          </div>
 
-      <div class="panel-card">
-        <h3 class="panel-title">项目映射（同步白名单）</h3>
-        <p class="sync-hint">仅同步已配置映射的项目；删除映射即停止同步（已同步数据保留）</p>
-        <div v-for="(m, i) in syncMapping" :key="i" class="mapping-row">
-          <a-input v-model="m.dt" placeholder="DTrack 项目名" style="flex: 1" />
-          <span class="mapping-arrow">→</span>
-          <a-select v-model="m.asset" placeholder="VulnArk 资产" style="flex: 1" allow-clear>
-            <a-option v-for="a in syncAssets" :key="a.id" :value="a.name">{{ a.name }}</a-option>
-          </a-select>
-          <a-button status="danger" size="small" @click="syncMapping.splice(i, 1)">删除</a-button>
-        </div>
-        <a-space style="margin-top: 8px">
-          <a-button size="small" @click="syncMapping.push({ dt: '', asset: '' })">+ 添加映射</a-button>
-          <a-button size="small" :loading="matching" @click="autoMatch">同名自动匹配</a-button>
-          <a-button type="primary" size="small" :loading="savingSync" @click="saveSyncConfig">保存映射</a-button>
-        </a-space>
-      </div>
+          <div class="panel-card">
+            <h3 class="panel-title">同步策略</h3>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="同步频率">
+                <a-select v-model="syncForm['dtrack.frequency']">
+                  <a-option value="hourly">每小时</a-option>
+                  <a-option value="daily">每天</a-option>
+                  <a-option value="off">关闭（仅手动）</a-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="自动置已解决">
+                <a-switch v-model="autoResolve" />
+                <span class="sync-hint">DTrack 不再报告时，将"待处理"的同步漏洞自动置为"已解决"（人工改过状态的绝不触碰）</span>
+              </a-form-item>
+              <a-form-item label="刷新风险字段">
+                <a-switch v-model="refreshFields" />
+                <span class="sync-hint">刷新 CVSS/EPSS/KEV 并重算 Band（仅对同步创建的漏洞，人工/Excel 数据不受影响）</span>
+              </a-form-item>
+            </a-form>
+            <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
+          </div>
 
-      <div class="panel-card">
-        <h3 class="panel-title">同步策略</h3>
-        <a-form layout="vertical" class="form-narrow">
-          <a-form-item label="同步频率">
-            <a-select v-model="syncForm['dtrack.frequency']">
-              <a-option value="hourly">每小时</a-option>
-              <a-option value="daily">每天</a-option>
-              <a-option value="off">关闭（仅手动）</a-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="自动置已解决">
-            <a-switch v-model="autoResolve" />
-            <span class="sync-hint">DTrack 不再报告时，将"待处理"的同步漏洞自动置为"已解决"（人工改过状态的绝不触碰）</span>
-          </a-form-item>
-          <a-form-item label="刷新风险字段">
-            <a-switch v-model="refreshFields" />
-            <span class="sync-hint">刷新 CVSS/EPSS/KEV 并重算 Band（仅对同步创建的漏洞，人工/Excel 数据不受影响）</span>
-          </a-form-item>
-        </a-form>
-        <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
-      </div>
-
-      <div class="panel-card">
-        <h3 class="panel-title">同步状态</h3>
-        <a-space>
-          <a-button type="primary" status="warning" :loading="syncRunning" :disabled="syncRunning" @click="triggerSync">
-            {{ syncRunning ? '同步进行中...' : '立即同步' }}
-          </a-button>
-          <a-button @click="loadSyncStatus">刷新状态</a-button>
-        </a-space>
-        <div v-if="syncLogs.length" class="sync-logs">
-          <div v-for="log in syncLogs" :key="log.id" class="sync-log-item">
-            <span class="sync-log-time">{{ formatSyncTime(log.syncTime) }}</span>
-            <a-tag size="small" :color="log.triggerType === 'AUTO' ? 'blue' : 'green'">
-              {{ log.triggerType === 'AUTO' ? '定时' : '手动' }}
-            </a-tag>
-            <span class="sync-log-summary">
-              新增 {{ log.added }} · 更新 {{ log.updated }} · 置已解决 {{ log.resolved }} · 失败 {{ log.failed }}
-            </span>
+          <div class="panel-card">
+            <h3 class="panel-title">同步状态</h3>
+            <a-space>
+              <a-button type="primary" status="warning" :loading="syncRunning" :disabled="syncRunning" @click="triggerSync">
+                {{ syncRunning ? '同步进行中...' : '立即同步' }}
+              </a-button>
+              <a-button @click="loadSyncStatus">刷新状态</a-button>
+            </a-space>
+            <div v-if="syncLogs.length" class="sync-logs">
+              <div v-for="log in syncLogs" :key="log.id" class="sync-log-item">
+                <span class="sync-log-time">{{ formatSyncTime(log.syncTime) }}</span>
+                <a-tag size="small" :color="log.triggerType === 'AUTO' ? 'blue' : 'green'">
+                  {{ log.triggerType === 'AUTO' ? '定时' : '手动' }}
+                </a-tag>
+                <span class="sync-log-summary">
+                  新增 {{ log.added }} · 更新 {{ log.updated }} · 置已解决 {{ log.resolved }} · 失败 {{ log.failed }}
+                </span>
+              </div>
+            </div>
+            <p v-else class="sync-hint">暂无同步记录</p>
           </div>
         </div>
-        <p v-else class="sync-hint">暂无同步记录</p>
+
       </div>
     </div>
+
   </div>
 </template>
 
