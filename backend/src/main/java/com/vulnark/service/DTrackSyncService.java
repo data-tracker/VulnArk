@@ -46,6 +46,7 @@ public class DTrackSyncService {
     @Autowired private SyncLogRepository syncLogRepo;
     @Autowired private VulnerabilityRepository vulnRepo;
     @Autowired private AssetRepository assetRepo;
+    @Autowired private AssetService assetService;
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10)).build();
@@ -260,6 +261,12 @@ public class DTrackSyncService {
                     resolvedN++;
                 }
             }
+        }
+        // 刷新资产漏洞计数（创建/置已解决都会改变数量）
+        try {
+            assetService.updateAssetStatistics(asset.getId());
+        } catch (Exception e) {
+            logger.warn("资产统计刷新失败: {}", e.getMessage());
         }
         return new int[]{added, updated, resolvedN, failed};
     }
