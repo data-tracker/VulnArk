@@ -332,9 +332,13 @@ const resetFormData = () => {
 // 保存用户
 const handleSave = async () => {
   try {
-    // 表单验证
-    const valid = await formRef.value?.validate()
-    if (!valid) return
+    // 表单验证（失败时 validate 会 reject，单独捕获给出明确提示）
+    await formRef.value?.validate()
+  } catch (validationError) {
+    Message.warning('表单填写不完整，请检查红色标注的必填项')
+    return
+  }
+  try {
 
     saveLoading.value = true
 
