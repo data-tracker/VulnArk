@@ -264,19 +264,19 @@
                     <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
                     <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).added) }}</div>
                     <div class="detail-head">
-                      <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+                      <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
                     </div>
                     <div v-for="(d, k) in parseLogDetail(log).added" :key="'a'+k" class="detail-row">
-                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
+                      <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
                     </div>
                   </div>
                   <div v-if="parseLogDetail(log).resolved?.length">
                     <div class="detail-group-title">置已解决（{{ parseLogDetail(log).resolved.length }}）</div>
-                    <div class="detail-head two">
-                      <span>CVE 编号</span><span>标题</span>
+                    <div class="detail-head">
+                      <span>资产</span><span>CVE 编号</span><span>标题</span><span></span>
                     </div>
-                    <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row two">
-                      <span>{{ d.cve }}</span><span>{{ d.title }}</span>
+                    <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r'+k" class="detail-row">
+                      <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span>
                     </div>
                   </div>
                   <div v-if="parseLogDetail(log).enrich">
@@ -290,10 +290,10 @@
                     </div>
                     <template v-if="parseLogDetail(log).enrich.bandRecalcedList?.length">
                       <div class="detail-head">
-                        <span>CVE 编号</span><span>原 Band</span><span>新 Band</span><span></span>
+                        <span>资产</span><span>CVE 编号</span><span>原 Band</span><span>新 Band</span>
                       </div>
                       <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b'+k" class="detail-row">
-                        <span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: var(--primary-600)">{{ d.to }}</span><span></span>
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: var(--primary-600)">{{ d.to }}</span>
                       </div>
                     </template>
                   </div>
@@ -301,10 +301,10 @@
                     <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
                     <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
                     <div class="detail-head">
-                      <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span></span>
+                      <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span>
                     </div>
                     <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u'+k" class="detail-row">
-                      <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span></span>
+                      <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
                     </div>
                   </div>
                 </div>
@@ -845,7 +845,7 @@ onMounted(async () => {
 .sync-log-toggle { color: var(--primary-600); font-size: 12px; margin-left: auto; }
 .sync-log-detail { margin: 6px 0 8px 0; padding: 10px; background: var(--surface-hover); border-radius: 6px; max-height: 260px; overflow-y: auto; font-size: 12px; }
 .detail-group-title { font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
-.detail-head, .detail-row { display: grid; grid-template-columns: 150px 90px 90px 1fr; gap: 8px; padding: 2px 12px; }
+.detail-head, .detail-row { display: grid; grid-template-columns: 110px 150px 100px 90px 1fr; gap: 8px; padding: 2px 12px; }
 .detail-head { color: var(--text-primary); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .detail-band-summary { color: var(--primary-600); font-size: 12px; margin: 2px 0 6px 12px; }
 .detail-row { color: var(--text-secondary, #64748b); }

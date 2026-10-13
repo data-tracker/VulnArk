@@ -240,6 +240,8 @@ public class DTrackSyncService {
         }
 
         // --- 应用更新 ---
+        Map<Long, String> assetNames = new HashMap<>();
+        assetRepo.findAll().forEach(a -> assetNames.put(a.getId(), a.getName()));
         int epssUpdated = 0, kevUpdated = 0, bandRecalced = 0;
         List<Map<String, Object>> bandRecalcedList = new ArrayList<>();
         List<Vulnerability> toSave = new ArrayList<>();
@@ -358,6 +360,7 @@ public class DTrackSyncService {
                     vulnRepo.save(v);
                     added++;
                     Map<String, Object> d = new LinkedHashMap<>();
+                    d.put("asset", asset.getName());
                     d.put("cve", cveId); d.put("title", v.getTitle());
                     d.put("cvssLevel", v.getCvssLevel() == null ? "-" : String.valueOf(v.getCvssLevel()));
                     d.put("band", String.valueOf(v.getSeverity()));
@@ -404,6 +407,7 @@ public class DTrackSyncService {
                     vulnRepo.save(v);
                     resolvedN++;
                     Map<String, Object> d = new LinkedHashMap<>();
+                    d.put("asset", asset.getName());
                     d.put("cve", v.getCveId()); d.put("title", v.getTitle());
                     resolvedList.add(d);
                 }
