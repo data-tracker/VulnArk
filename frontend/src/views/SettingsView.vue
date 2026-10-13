@@ -166,21 +166,107 @@
 
       </div>
     </div>
+
+    <!-- 数据同步（ADMIN） -->
+    <div v-if="activeTab === 'sync' && isAdmin" class="content-panel">
+      <div class="panel-card">
+        <h3 class="panel-title">Dependency-Track 连接</h3>
+        <a-form layout="vertical" class="form-narrow">
+          <a-form-item label="API 地址">
+            <a-input v-model="syncForm['dtrack.url']" placeholder="http://192.168.20.162:8081" />
+          </a-form-item>
+          <a-form-item label="API Key">
+            <a-input-password v-model="syncForm['dtrack.api_key']" placeholder="Dependency-Track API Key" />
+          </a-form-item>
+        </a-form>
+        <a-space>
+          <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存连接配置</a-button>
+          <a-button status="success" :loading="testingSync" @click="testSync">测试连接</a-button>
+          <span v-if="testResult" :style="{ color: testResult.ok ? '#16a34a' : '#dc2626', fontSize: '12px' }">
+            {{ testResult.ok ? `连接成功（${testResult.projectCount} 个项目）` : `失败: ${testResult.message}` }}
+          </span>
+        </a-space>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title">项目映射（同步白名单）</h3>
+        <p class="sync-hint">仅同步已配置映射的项目；删除映射即停止同步（已同步数据保留）</p>
+        <div v-for="(m, i) in syncMapping" :key="i" class="mapping-row">
+          <a-input v-model="m.dt" placeholder="DTrack 项目名" style="flex: 1" />
+          <span class="mapping-arrow">→</span>
+          <a-select v-model="m.asset" placeholder="VulnArk 资产" style="flex: 1" allow-clear>
+            <a-option v-for="a in syncAssets" :key="a.id" :value="a.name">{{ a.name }}</a-option>
+          </a-select>
+          <a-button status="danger" size="small" @click="syncMapping.splice(i, 1)">删除</a-button>
+        </div>
+        <a-space style="margin-top: 8px">
+          <a-button size="small" @click="syncMapping.push({ dt: '', asset: '' })">+ 添加映射</a-button>
+          <a-button size="small" :loading="matching" @click="autoMatch">同名自动匹配</a-button>
+          <a-button type="primary" size="small" :loading="savingSync" @click="saveSyncConfig">保存映射</a-button>
+        </a-space>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title">同步策略</h3>
+        <a-form layout="vertical" class="form-narrow">
+          <a-form-item label="同步频率">
+            <a-select v-model="syncForm['dtrack.frequency']">
+              <a-option value="hourly">每小时</a-option>
+              <a-option value="daily">每天</a-option>
+              <a-option value="off">关闭（仅手动）</a-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="自动置已解决">
+            <a-switch v-model="autoResolve" />
+            <span class="sync-hint">DTrack 不再报告时，将"待处理"的同步漏洞自动置为"已解决"（人工改过状态的绝不触碰）</span>
+          </a-form-item>
+          <a-form-item label="刷新风险字段">
+            <a-switch v-model="refreshFields" />
+            <span class="sync-hint">刷新 CVSS/EPSS/KEV 并重算 Band（仅对同步创建的漏洞，人工/Excel 数据不受影响）</span>
+          </a-form-item>
+        </a-form>
+        <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title">同步状态</h3>
+        <a-space>
+          <a-button type="primary" status="warning" :loading="syncRunning" :disabled="syncRunning" @click="triggerSync">
+            {{ syncRunning ? '同步进行中...' : '立即同步' }}
+          </a-button>
+          <a-button @click="loadSyncStatus">刷新状态</a-button>
+        </a-space>
+        <div v-if="syncLogs.length" class="sync-logs">
+          <div v-for="log in syncLogs" :key="log.id" class="sync-log-item">
+            <span class="sync-log-time">{{ formatSyncTime(log.syncTime) }}</span>
+            <a-tag size="small" :color="log.triggerType === 'AUTO' ? 'blue' : 'green'">
+              {{ log.triggerType === 'AUTO' ? '定时' : '手动' }}
+            </a-tag>
+            <span class="sync-log-summary">
+              新增 {{ log.added }} · 更新 {{ log.updated }} · 置已解决 {{ log.resolved }} · 失败 {{ log.failed }}
+            </span>
+          </div>
+        </div>
+        <p v-else class="sync-hint">暂无同步记录</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import {
   IconUser,
   IconLock,
   IconNotification,
-  IconSettings
+  IconSettings,
+  IconSync
 } from '@arco-design/web-vue/es/icon'
 import { useAuthStore } from '@/stores/auth'
 import { getCurrentUser, updateOwnProfile, changeOwnPassword } from '@/api/auth'
 import { getSystemConfigs, saveSystemConfigs, sendTestMail } from '@/api/systemConfig'
+import { testSyncConnection, runSync, getSyncStatus, getDtrackProjects } from '@/api/sync'
 
 defineOptions({ name: 'SettingsView' })
 
@@ -201,7 +287,8 @@ const allTabs: TabDef[] = [
   { key: 'profile', label: '个人资料', description: '管理个人信息和偏好设置', icon: IconUser },
   { key: 'security', label: '安全设置', description: '密码与安全选项', icon: IconLock, badge: '重要', badgeClass: 'badge-red' },
   { key: 'email', label: '邮件通知', description: 'SMTP 服务器与测试发送', icon: IconNotification, adminOnly: true },
-  { key: 'general', label: '系统配置', description: '站点名称等全局参数', icon: IconSettings, adminOnly: true }
+  { key: 'general', label: '系统配置', description: '站点名称等全局参数', icon: IconSettings, adminOnly: true },
+  { key: 'sync', label: '数据同步', description: 'Dependency-Track 定期同步', icon: IconSync, adminOnly: true }
 ]
 const visibleTabs = computed(() => allTabs.filter(t => !t.adminOnly || isAdmin.value))
 const activeTab = ref('profile')
@@ -324,7 +411,113 @@ const sendTest = async () => {
   }
 }
 
+// ===== 数据同步（DTrack）=====
+const savingSync = ref(false)
+const testingSync = ref(false)
+const testResult = ref<{ ok: boolean; projectCount?: number; message?: string } | null>(null)
+const syncMapping = ref<{ dt: string; asset: string }[]>([])
+const syncAssets = ref<any[]>([])
+const matching = ref(false)
+const syncRunning = ref(false)
+const syncLogs = ref<any[]>([])
+
+const syncForm = reactive<Record<string, any>>({
+  'dtrack.url': '',
+  'dtrack.api_key': '',
+  'dtrack.mapping': '{}',
+  'dtrack.frequency': 'daily',
+  'dtrack.auto_resolve': 'true',
+  'dtrack.refresh_fields': 'true'
+})
+const autoResolve = computed({
+  get: () => syncForm['dtrack.auto_resolve'] === 'true',
+  set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
+})
+const refreshFields = computed({
+  get: () => syncForm['dtrack.refresh_fields'] === 'true',
+  set: (v: boolean) => { syncForm['dtrack.refresh_fields'] = v ? 'true' : 'false' }
+})
+
+const initSyncTab = async () => {
+  try {
+    const grouped = await getSystemConfigs()
+    if (grouped.dtrack) {
+      Object.keys(syncForm).forEach(k => {
+        if (grouped.dtrack[k] !== undefined) syncForm[k] = grouped.dtrack[k]
+      })
+    }
+    try { syncMapping.value = JSON.parse(syncForm['dtrack.mapping'] || '[]') } catch { syncMapping.value = [] }
+  } catch { /* 忽略 */ }
+  loadSyncAssets()
+  loadSyncStatus()
+}
+
+const loadSyncAssets = async () => {
+  try {
+    const { assetApi } = await import('@/api/asset')
+    const r: any = await assetApi.getAssets({ page: 0, size: 100 })
+    syncAssets.value = (r && (r.content || r)) || []
+  } catch { syncAssets.value = [] }
+}
+
+const saveSyncConfig = async () => {
+  savingSync.value = true
+  try {
+    syncForm['dtrack.mapping'] = JSON.stringify(syncMapping.value.filter(m => m.dt && m.asset))
+    const payload: Record<string, string> = {}
+    Object.entries(syncForm).forEach(([k, v]) => { payload[k] = String(v ?? '') })
+    await saveSystemConfigs(payload)
+    Message.success('同步配置保存成功')
+  } catch (e) { /* 拦截器已提示 */ } finally { savingSync.value = false }
+}
+
+const testSync = async () => {
+  testingSync.value = true
+  testResult.value = null
+  try {
+    await saveSyncConfig()
+    testResult.value = await testSyncConnection()
+  } catch (e) { /* 拦截器已提示 */ } finally { testingSync.value = false }
+}
+
+const autoMatch = async () => {
+  matching.value = true
+  try {
+    const names = await getDtrackProjects()
+    const assetNames = syncAssets.value.map(a => a.name)
+    const matched = names.filter(n => assetNames.includes(n))
+    if (!matched.length) { Message.warning('没有找到两边同名的项目/资产'); return }
+    matched.forEach(n => {
+      if (!syncMapping.value.some(m => m.dt === n)) syncMapping.value.push({ dt: n, asset: n })
+    })
+    Message.success(`匹配到 ${matched.length} 个同名对，请确认后保存`)
+  } catch (e) { /* 拦截器已提示 */ } finally { matching.value = false }
+}
+
+const loadSyncStatus = async () => {
+  try {
+    const r = await getSyncStatus()
+    syncRunning.value = r.running
+    syncLogs.value = r.logs || []
+  } catch { /* 忽略 */ }
+}
+
+const triggerSync = async () => {
+  try {
+    await runSync()
+    Message.success('同步已启动')
+    setTimeout(loadSyncStatus, 3000)
+    setTimeout(loadSyncStatus, 15000)
+  } catch (e) { /* 拦截器已提示 */ }
+}
+
+const formatSyncTime = (t: string) => (t ? String(t).replace('T', ' ').slice(0, 19) : '-')
+
 // ===== 初始化 =====
+watch(activeTab, (tab) => {
+  if (tab === 'sync' && isAdmin.value) initSyncTab()
+})
+
 onMounted(async () => {
   try {
     me.value = await getCurrentUser()
@@ -531,4 +724,16 @@ onMounted(async () => {
 .test-input {
   flex: 1;
 }
+.mapping-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.mapping-arrow { color: #94a3b8; }
+.sync-hint { font-size: 12px; color: #94a3b8; margin: 4px 0; }
+.sync-logs { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.sync-log-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }
+.sync-log-summary { color: var(--text-primary); }
 </style>
