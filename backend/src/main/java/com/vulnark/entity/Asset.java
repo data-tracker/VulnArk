@@ -3,12 +3,17 @@ package com.vulnark.entity;
 import jakarta.persistence.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 
 @Schema(description = "资产实体")
 @Entity
 @Table(name = "assets")
+// 软删除：repository.delete() 转为 UPDATE deleted=1；所有查询自动过滤已删资产
+@SQLDelete(sql = "UPDATE assets SET deleted = 1 WHERE id = ?")
+@Where(clause = "deleted = 0")
 public class Asset {
     
     @Schema(description = "资产ID")
