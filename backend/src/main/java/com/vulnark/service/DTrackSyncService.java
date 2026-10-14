@@ -273,6 +273,7 @@ public class DTrackSyncService {
                     bd.put("asset", assetNames.getOrDefault(v.getAssetId(), "-"));
                     bd.put("cve", v.getCveId());
                     bd.put("from", String.valueOf(v.getSeverity()));
+                    bd.put("reason", bandReason(v));
                     bd.put("to", String.valueOf(band));
                     bandRecalcedList.add(bd);
                     v.setSeverity(band); bandRecalced++;
@@ -389,6 +390,9 @@ public class DTrackSyncService {
                         d.put("cvssLevel", oldLevel.equals(newLevel) ? newLevel : oldLevel + "→" + newLevel);
                         d.put("cvssScore", oldScore.equals(newScore) ? newScore : oldScore + "→" + newScore);
                         d.put("band", oldBand.equals(newBand) ? newBand : oldBand + "→" + newBand);
+                        if (!oldBand.equals(newBand)) {
+                            d.put("reason", bandReason(cur));
+                        }
                         updatedList.add(d);
                     }
                 }
@@ -476,6 +480,23 @@ public class DTrackSyncService {
 
     private BigDecimal cvss(Vulnerability v) {
         return v.getCvssScore() == null ? BigDecimal.valueOf(-1) : v.getCvssScore();
+    }
+
+    /**
+     * Band 变化的触发信号说明：标注哪些风险信号命中了 CRA 规则
+     */
+    private String bandReason(Vulnerability v) {
+        List<String> reasons = new ArrayList<>();
+        if (Boolean.TRUE.equals(v.getKev())) reasons.add("KEV");
+        if (v.getEpssScore() != null && v.getEpssScore().doubleValue() > 0.5) {
+            reasons.add("EPSS " + v.getEpssScore() + ">0.5");
+        }
+        if (v.getCvssScore() != null && v.getCvssScore().doubleValue() >= 9.0) {
+            reasons.add("CVSS≥9");
+        } else if (v.getCvssScore() != null && v.getCvssScore().doubleValue() >= 7.0) {
+            reasons.add("CVSS≥7");
+        }
+        return reasons.isEmpty() ? "-" : String.join(" + ", reasons);
     }
 
     private String bandToLevel(double score) {

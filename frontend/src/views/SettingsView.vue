@@ -286,10 +286,10 @@
                         <div class="detail-group-title">更新（{{ block.updated.length }}）</div>
                         <div class="detail-band-summary">Band 分布：{{ bandSummary(block.updated) }}</div>
                         <div class="detail-head">
-                          <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span>
+                          <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
                         </div>
                         <div v-for="(d, k) in block.updated" :key="'u'+k" class="detail-row">
-                          <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
+                          <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
                         </div>
                       </div>
                       <div v-if="!block.added?.length && !block.updated?.length && !block.resolved?.length" class="detail-row">
@@ -321,10 +321,10 @@
                       <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
                       <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
                       <div class="detail-head">
-                        <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span>
+                        <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
                       </div>
                       <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u2'+k" class="detail-row">
-                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span>
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
                       </div>
                     </div>
                   </template>
@@ -340,10 +340,10 @@
                     </div>
                     <template v-if="parseLogDetail(log).enrich.bandRecalcedList?.length">
                       <div class="detail-head">
-                        <span>资产</span><span>CVE 编号</span><span>原 Band</span><span>新 Band</span>
+                        <span>资产</span><span>CVE 编号</span><span>原 Band</span><span>触发信号</span><span>新 Band</span>
                       </div>
                       <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b2'+k" class="detail-row">
-                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: var(--primary-600)">{{ d.to }}</span>
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: #94a3b8">{{ d.reason || '-' }}</span><span style="color: var(--primary-600)">{{ d.to }}</span>
                       </div>
                     </template>
                   </div>
