@@ -147,6 +147,7 @@ public class DTrackSyncService {
 
             // 明细按资产分块组织：资产名 -> {summary, added, updated, resolved}
             Map<String, Object> assetsDetail = new LinkedHashMap<>();
+            int descSuppTotal = 0;
             for (Map.Entry<String, String> e : mapping.entrySet()) {
                 String dtrackName = e.getKey(), assetName = e.getValue();
                 Map<String, Object> block = new LinkedHashMap<>();
@@ -166,6 +167,7 @@ public class DTrackSyncService {
                     log.setUpdated(log.getUpdated() + (Integer) r.get("updated"));
                     log.setResolved(log.getResolved() + (Integer) r.get("resolved"));
                     log.setFailed(log.getFailed() + (Integer) r.get("failed"));
+                    descSuppTotal += (Integer) r.get("descSupplemented");
                     block.put("added", r.get("addedList"));
                     block.put("updated", r.get("updatedList"));
                     block.put("resolved", r.get("resolvedList"));
@@ -191,6 +193,7 @@ public class DTrackSyncService {
 
             // detail 存 JSON：摘要 + 各类变更的 CVE 明细（前端展开显示）
             Map<String, Object> detailJson = new LinkedHashMap<>();
+            detailJson.put("descSupplemented", descSuppTotal);
             detailJson.put("summary", String.join("\n", details));
             detailJson.put("assets", assetsDetail);
             if (enrichResult != null) detailJson.put("enrich", enrichResult);
@@ -353,7 +356,7 @@ public class DTrackSyncService {
             if (v.getCveId() != null) existingByCve.putIfAbsent(v.getCveId(), v);
         }
 
-        int added = 0, updated = 0, resolvedN = 0, failed = 0;
+        int added = 0, updated = 0, resolvedN = 0, failed = 0, descSupp = 0;
 
         // 新增与刷新
         for (Map.Entry<String, JsonNode> e : dtrackVulns.entrySet()) {
@@ -378,8 +381,12 @@ public class DTrackSyncService {
                     String oldLevel = cur.getCvssLevel() == null ? "-" : String.valueOf(cur.getCvssLevel());
                     String oldScore = cur.getCvssScore() == null ? "-" : String.valueOf(cur.getCvssScore());
                     String oldBand = String.valueOf(cur.getSeverity());
-                    boolean changed = applyRiskFields(cur, dv);
-                    if (changed) {
+                    boolean[] descSuppFlag = {false};
+                    boolean changed = applyRiskFields(cur, dv, descSuppFlag);
+                    if (descSuppFlag[0]) descSupp++;
+                    boolean riskChanged = changed;
+                    if (descSuppFlag[0] && !riskChanged) vulnRepo.save(cur); // 仅描述变化：保存但不计更新
+                    if (riskChanged) {
                         vulnRepo.save(cur); updated++;
                         // 明细记录变化前后值（from -> to），便于追溯
                         Map<String, Object> d = new LinkedHashMap<>();
@@ -433,6 +440,7 @@ public class DTrackSyncService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("added", added); result.put("updated", updated);
         result.put("resolved", resolvedN); result.put("failed", failed);
+        result.put("descSupplemented", descSupp);
         result.put("addedList", addedList);
         result.put("updatedList", updatedList);
         result.put("resolvedList", resolvedList);
@@ -462,20 +470,21 @@ public class DTrackSyncService {
         v.setSource(Vulnerability.VulnerabilitySource.API);
         v.setKev(Boolean.FALSE);
         v.setAffectedSystems("依赖组件 " + cname + "@" + cver);
-        applyRiskFields(v, dv);
+        applyRiskFields(v, dv, null);
         return v;
     }
 
     /** 应用风险字段并按 CRA 规则重算 Band；返回是否有变化 */
-    private boolean applyRiskFields(Vulnerability v, JsonNode dv) {
+    private boolean applyRiskFields(Vulnerability v, JsonNode dv, boolean[] descSupp) {
         boolean changed = false;
         // 补充 DTrack 官方漏洞描述（若缺失则追加，不覆盖已有内容）
+        // 不计入"更新"（量大且重要性低于风险字段变化），单独统计
         String dtrackDesc = dv.path("description").asText("").trim();
         if (!dtrackDesc.isBlank() && (v.getDescription() == null
                 || !v.getDescription().contains(dtrackDesc.substring(0, Math.min(50, dtrackDesc.length()))))) {
             String base = v.getDescription() == null ? "" : v.getDescription();
             v.setDescription(base + (base.isEmpty() ? "" : "\n\n") + "漏洞描述: " + dtrackDesc);
-            changed = true;
+            if (descSupp != null) descSupp[0] = true;
         }
         Double cvss = dv.hasNonNull("cvssV3BaseScore") ? dv.get("cvssV3BaseScore").asDouble()
                 : (dv.hasNonNull("cvssV2BaseScore") ? dv.get("cvssV2BaseScore").asDouble() : null);
