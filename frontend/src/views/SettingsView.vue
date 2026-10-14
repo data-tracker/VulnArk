@@ -285,10 +285,10 @@
                       <div v-if="block.updated?.length">
                         <div class="detail-group-title">更新（{{ block.updated.length }}）</div>
                         <div class="detail-band-summary">Band 分布：{{ bandSummary(block.updated) }}</div>
-                        <div class="detail-head">
+                        <div class="detail-head cols-update">
                           <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
                         </div>
-                        <div v-for="(d, k) in block.updated" :key="'u'+k" class="detail-row">
+                        <div v-for="(d, k) in block.updated" :key="'u'+k" class="detail-row cols-update">
                           <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
                         </div>
                       </div>
@@ -320,10 +320,10 @@
                     <div v-if="parseLogDetail(log).updated?.length">
                       <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
                       <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
-                      <div class="detail-head">
+                      <div class="detail-head cols-update-old">
                         <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
                       </div>
-                      <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u2'+k" class="detail-row">
+                      <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u2'+k" class="detail-row cols-update-old">
                         <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
                       </div>
                     </div>
@@ -339,10 +339,10 @@
                       <span></span><span></span>
                     </div>
                     <template v-if="parseLogDetail(log).enrich.bandRecalcedList?.length">
-                      <div class="detail-head">
+                      <div class="detail-head cols-brecalc">
                         <span>资产</span><span>CVE 编号</span><span>原 Band</span><span>触发信号</span><span>新 Band</span>
                       </div>
-                      <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b2'+k" class="detail-row">
+                      <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b2'+k" class="detail-row cols-brecalc">
                         <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: #94a3b8">{{ d.reason || '-' }}</span><span style="color: var(--primary-600)">{{ d.to }}</span>
                       </div>
                     </template>
@@ -901,6 +901,10 @@ onMounted(async () => {
 .asset-block { margin-bottom: 12px; }
 .asset-block-title { font-weight: 600; color: var(--primary-600); margin: 8px 0 4px; font-size: 13px; }
 .asset-block-summary { font-weight: 400; color: var(--text-secondary, #64748b); margin-left: 10px; font-size: 12px; }
+.cols-update { grid-template-columns: 150px 110px 100px 140px minmax(170px, 1fr) !important; }
+.cols-update-old { grid-template-columns: 100px 140px 100px 90px 130px minmax(160px, 1fr) !important; }
+.cols-brecalc { grid-template-columns: 100px 140px 90px minmax(160px, 1fr) 100px !important; }
+.detail-head span, .detail-row span { min-width: 0; word-break: break-word; white-space: normal; }
 .detail-band-summary { color: var(--primary-600); font-size: 12px; margin: 2px 0 6px 12px; }
 .detail-row { color: var(--text-secondary, #64748b); }
 .sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }
