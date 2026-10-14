@@ -78,9 +78,9 @@ def main(xlsx_path):
     print(f'目标资产 {ASSET_NAME!r} -> id={ASSET_ID}')
 
     sqls = [
-        "-- 清空存量漏洞并重置资产计数",
-        "DELETE FROM vulnerabilities;",
-        "UPDATE assets SET vulnerability_count = 0;",
+        "-- 仅清空目标资产的漏洞（其他资产数据保留！）",
+        f"DELETE FROM vulnerabilities WHERE asset_id = {ASSET_ID};",
+        f"UPDATE assets SET vulnerability_count = 0 WHERE id = {ASSET_ID};",
         # 定时同步保护：清空 sync_logs 后定时器会误判"从未同步"而在导入
         # 期间自动触发全量同步。写入 AUTO 占位日志（当前时间）阻止本次窗口触发
         "INSERT INTO sync_logs (sync_time, trigger_type, added, updated, resolved, failed, detail) VALUES (NOW(6), 'AUTO', 0, 0, 0, 0, 'Excel 重导保护占位：清空重导期间抑制自动同步');",
