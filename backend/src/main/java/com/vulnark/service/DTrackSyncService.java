@@ -447,6 +447,10 @@ public class DTrackSyncService {
         v.setTitle(title.length() > 255 ? title.substring(0, 255) : title);
         v.setCveId(cveId);
         StringBuilder desc = new StringBuilder("组件: " + cname + "@" + cver + "\n来源: " + dv.path("source").asText());
+        String dtrackDesc = dv.path("description").asText("");
+        if (!dtrackDesc.isBlank()) {
+            desc.append("\n\n漏洞描述: ").append(dtrackDesc.trim());
+        }
         if (isCve) desc.append("\n\n参考: https://nvd.nist.gov/vuln/detail/").append(cveId);
         v.setDescription(desc.toString());
         v.setStatus(Vulnerability.Status.OPEN);
@@ -464,6 +468,14 @@ public class DTrackSyncService {
     /** 应用风险字段并按 CRA 规则重算 Band；返回是否有变化 */
     private boolean applyRiskFields(Vulnerability v, JsonNode dv) {
         boolean changed = false;
+        // 补充 DTrack 官方漏洞描述（若缺失则追加，不覆盖已有内容）
+        String dtrackDesc = dv.path("description").asText("").trim();
+        if (!dtrackDesc.isBlank() && (v.getDescription() == null
+                || !v.getDescription().contains(dtrackDesc.substring(0, Math.min(50, dtrackDesc.length()))))) {
+            String base = v.getDescription() == null ? "" : v.getDescription();
+            v.setDescription(base + (base.isEmpty() ? "" : "\n\n") + "漏洞描述: " + dtrackDesc);
+            changed = true;
+        }
         Double cvss = dv.hasNonNull("cvssV3BaseScore") ? dv.get("cvssV3BaseScore").asDouble()
                 : (dv.hasNonNull("cvssV2BaseScore") ? dv.get("cvssV2BaseScore").asDouble() : null);
         if (cvss != null) {
