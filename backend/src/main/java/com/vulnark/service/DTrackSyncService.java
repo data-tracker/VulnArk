@@ -512,6 +512,8 @@ public class DTrackSyncService {
         if (Boolean.TRUE.equals(v.getKev())) reasons.add("KEV");
         if (v.getEpssScore() != null && v.getEpssScore().doubleValue() > 0.5) {
             reasons.add("EPSS " + v.getEpssScore() + ">0.5");
+        } else if (v.getEpssScore() == null) {
+            reasons.add("EPSS待补全");  // enrich 步骤稍后补上，可能触发 Band 变化
         }
         if (v.getCvssScore() != null && v.getCvssScore().doubleValue() >= 9.0) {
             reasons.add("CVSS≥9");
