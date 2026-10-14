@@ -106,6 +106,13 @@ public class AssetService {
      */
     public void deleteAsset(Long id) {
         Asset asset = getAssetById(id);
+        // 删除保护：资产下存在漏洞时拒绝删除，防止误删分析成果并产生孤儿漏洞
+        long vulnCount = vulnerabilityRepository.countByAssetIdAndDeletedFalse(id);
+        if (vulnCount > 0) {
+            throw new RuntimeException(String.format(
+                    "该资产下有 %d 条漏洞，请先转移或删除这些漏洞后再删除资产", vulnCount));
+        }
+        // 软删除（@SQLDelete）：标记 deleted=1，数据保留可恢复
         assetRepository.delete(asset);
     }
     

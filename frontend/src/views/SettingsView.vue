@@ -164,23 +164,216 @@
           </div>
         </div>
 
+        <!-- 数据同步（ADMIN） -->
+        <div v-if="activeTab === 'sync' && isAdmin" class="content-panel">
+          <div class="panel-card">
+            <h3 class="panel-title">Dependency-Track 连接</h3>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="API 地址">
+                <a-input v-model="syncForm['dtrack.url']" placeholder="http://192.168.20.162:8081" />
+              </a-form-item>
+              <a-form-item label="API Key">
+                <a-input-password v-model="syncForm['dtrack.api_key']" placeholder="Dependency-Track API Key" />
+              </a-form-item>
+            </a-form>
+            <a-space>
+              <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存连接配置</a-button>
+              <a-button status="success" :loading="testingSync" @click="testSync">测试连接</a-button>
+              <span v-if="testResult" :style="{ color: testResult.ok ? '#16a34a' : '#dc2626', fontSize: '12px' }">
+                {{ testResult.ok ? `连接成功（${testResult.projectCount} 个项目）` : `失败: ${testResult.message}` }}
+              </span>
+            </a-space>
+          </div>
+
+          <div class="panel-card">
+            <h3 class="panel-title">项目映射（同步白名单）</h3>
+            <p class="sync-hint">仅同步已配置映射的项目；删除映射即停止同步（已同步数据保留）</p>
+            <div v-for="(m, i) in syncMapping" :key="i" class="mapping-row">
+              <a-input v-model="m.dt" placeholder="DTrack 项目名" style="flex: 1" />
+              <span class="mapping-arrow">→</span>
+              <a-select v-model="m.asset" placeholder="VulnArk 资产" style="flex: 1" allow-clear>
+                <a-option v-for="a in syncAssets" :key="a.id" :value="a.name">{{ a.name }}</a-option>
+              </a-select>
+              <a-button status="danger" size="small" @click="syncMapping.splice(i, 1)">删除</a-button>
+            </div>
+            <a-space style="margin-top: 8px">
+              <a-button size="small" @click="syncMapping.push({ dt: '', asset: '' })">+ 添加映射</a-button>
+              <a-button size="small" :loading="matching" @click="autoMatch">同名自动匹配</a-button>
+              <a-button type="primary" size="small" :loading="savingSync" @click="saveSyncConfig">保存映射</a-button>
+            </a-space>
+          </div>
+
+          <div class="panel-card">
+            <h3 class="panel-title">同步策略</h3>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="同步频率">
+                <a-select v-model="syncForm['dtrack.frequency']">
+                  <a-option value="hourly">每小时</a-option>
+                  <a-option value="daily">每天</a-option>
+                  <a-option value="off">关闭（仅手动）</a-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="自动置已解决">
+                <a-switch v-model="autoResolve" />
+                <div class="sync-hint" style="margin-top: 4px">
+              当组件升级后 DTrack 不再报告某 CVE 时，自动把它标记为"已解决"（附自动备注）。<br/>
+              仅作用于"待处理"且由同步创建的漏洞——人工录入、Excel 导入、以及已手动改过状态的漏洞一律不受影响。
+            </div>
+              </a-form-item>
+          <a-form-item label="EPSS/KEV 自动补全">
+            <a-switch v-model="autoEnrich" />
+            <div class="sync-hint" style="margin-top: 4px">
+              同步后从 FIRST（EPSS）与 CISA（KEV 目录）官方源补全风险字段——DTrack 不提供这两个数据。<br/>
+              字段对所有漏洞补全；Band 重算仍仅限同步创建的漏洞（人工分析成果不受影响）。
+            </div>
+          </a-form-item>
+              <a-form-item label="刷新风险字段">
+                <a-switch v-model="refreshFields" />
+                <div class="sync-hint" style="margin-top: 4px">
+              比对并刷新所有已存在 CVE 的 CVSS 级别/分数/EPSS/KEV，并按 CRA 规则重算 Band——
+              包括人工/Excel 导入的数据，保证资产体现最新风险状态。<br/>
+              人工判定与分析内容（分析状态/处置状态/负责人/解决方案）永不覆盖。
+            </div>
+              </a-form-item>
+            </a-form>
+            <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
+          </div>
+
+          <div class="panel-card">
+            <h3 class="panel-title">同步状态</h3>
+            <a-space>
+              <a-button type="primary" status="warning" :loading="syncRunning" :disabled="syncRunning" @click="triggerSync">
+                {{ syncRunning ? '同步进行中...' : '立即同步' }}
+              </a-button>
+              <a-button @click="loadSyncStatus">刷新状态</a-button>
+            </a-space>
+            <div v-if="syncLogs.length" class="sync-logs">
+              <div v-for="log in syncLogs" :key="log.id" class="sync-log-entry">
+                <div class="sync-log-item" @click="toggleLogDetail(log)">
+                  <span class="sync-log-time">{{ formatSyncTime(log.syncTime) }}</span>
+                  <a-tag size="small" :color="log.triggerType === 'AUTO' ? 'blue' : 'green'">
+                    {{ log.triggerType === 'AUTO' ? '定时' : '手动' }}
+                  </a-tag>
+                  <span class="sync-log-summary">
+                    新增 {{ log.added }} · 更新 {{ log.updated }} · 置已解决 {{ log.resolved }} · 失败 {{ log.failed }}
+                  </span>
+                  <span v-if="parseLogDetail(log)" class="sync-log-toggle">{{ log._open ? '收起' : '明细' }}</span>
+                </div>
+<div v-if="log._open && parseLogDetail(log)" class="sync-log-detail">
+                  <template v-if="parseLogDetail(log).assets">
+                    <div v-for="(block, assetName) in parseLogDetail(log).assets" :key="assetName" class="asset-block">
+                      <div class="asset-block-title">{{ assetName }}<span class="asset-block-summary">{{ block.summary }}</span></div>
+                      <div v-if="block.added?.length">
+                        <div class="detail-group-title">新增（{{ block.added.length }}）</div>
+                        <div class="detail-band-summary">Band 分布：{{ bandSummary(block.added) }}</div>
+                        <div class="detail-head">
+                          <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+                        </div>
+                        <div v-for="(d, k) in block.added" :key="'a'+k" class="detail-row">
+                          <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
+                        </div>
+                      </div>
+                      <div v-if="block.resolved?.length">
+                        <div class="detail-group-title">置已解决（{{ block.resolved.length }}）</div>
+                        <div class="detail-head">
+                          <span>CVE 编号</span><span>标题</span><span></span><span></span>
+                        </div>
+                        <div v-for="(d, k) in block.resolved" :key="'r'+k" class="detail-row">
+                          <span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span><span></span>
+                        </div>
+                      </div>
+                      <div v-if="block.updated?.length">
+                        <div class="detail-group-title">更新（{{ block.updated.length }}）</div>
+                        <div class="detail-band-summary">Band 分布：{{ bandSummary(block.updated) }}</div>
+                        <div class="detail-head cols-update">
+                          <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
+                        </div>
+                        <div v-for="(d, k) in block.updated" :key="'u'+k" class="detail-row cols-update">
+                          <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
+                        </div>
+                      </div>
+                      <div v-if="!block.added?.length && !block.updated?.length && !block.resolved?.length" class="detail-row">
+                        <span>无变更</span><span></span><span></span><span></span>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-if="parseLogDetail(log).added?.length">
+                      <div class="detail-group-title">新增（{{ parseLogDetail(log).added.length }}）</div>
+                      <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).added) }}</div>
+                      <div class="detail-head">
+                        <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).added" :key="'a2'+k" class="detail-row">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
+                      </div>
+                    </div>
+                    <div v-if="parseLogDetail(log).resolved?.length">
+                      <div class="detail-group-title">置已解决（{{ parseLogDetail(log).resolved.length }}）</div>
+                      <div class="detail-head">
+                        <span>资产</span><span>CVE 编号</span><span>标题</span><span></span><span></span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).resolved" :key="'r2'+k" class="detail-row">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span><span></span>
+                      </div>
+                    </div>
+                    <div v-if="parseLogDetail(log).updated?.length">
+                      <div class="detail-group-title">更新（{{ parseLogDetail(log).updated.length }}）</div>
+                      <div class="detail-band-summary">Band 分布：{{ bandSummary(parseLogDetail(log).updated) }}</div>
+                      <div class="detail-head cols-update-old">
+                        <span>资产</span><span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).updated" :key="'u2'+k" class="detail-row cols-update-old">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
+                      </div>
+                    </div>
+                  </template>
+                  <div v-if="parseLogDetail(log).enrich">
+                    <div class="detail-group-title">EPSS/KEV 补全（全库）</div>
+                    <div class="detail-row" v-if="parseLogDetail(log).enrich.error" style="color:#dc2626">
+                      <span>失败</span><span>{{ parseLogDetail(log).enrich.error }}</span><span></span><span></span>
+                    </div>
+                    <div class="detail-row" v-else>
+                      <span>结果</span>
+                      <span>EPSS 更新 {{ parseLogDetail(log).enrich.epssUpdated ?? 0 }} · KEV 更新 {{ parseLogDetail(log).enrich.kevUpdated ?? 0 }} · Band 重算 {{ parseLogDetail(log).enrich.bandRecalced ?? 0 }}（KEV 目录 {{ parseLogDetail(log).enrich.kevCatalogSize ?? '-' }} 条）</span>
+                      <span></span><span></span>
+                    </div>
+                    <template v-if="parseLogDetail(log).enrich.bandRecalcedList?.length">
+                      <div class="detail-head cols-brecalc">
+                        <span>资产</span><span>CVE 编号</span><span>原 Band</span><span>触发信号</span><span>新 Band</span>
+                      </div>
+                      <div v-for="(d, k) in parseLogDetail(log).enrich.bandRecalcedList" :key="'b2'+k" class="detail-row cols-brecalc">
+                        <span>{{ d.asset || '-' }}</span><span>{{ d.cve }}</span><span>{{ d.from }}</span><span style="color: #94a3b8">{{ d.reason || '-' }}</span><span style="color: var(--primary-600)">{{ d.to }}</span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p v-else class="sync-hint">暂无同步记录</p>
+          </div>
+        </div>
+
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import {
   IconUser,
   IconLock,
   IconNotification,
-  IconSettings
+  IconSettings,
+  IconSync
 } from '@arco-design/web-vue/es/icon'
 import { useAuthStore } from '@/stores/auth'
 import { getCurrentUser, updateOwnProfile, changeOwnPassword } from '@/api/auth'
 import { getSystemConfigs, saveSystemConfigs, sendTestMail } from '@/api/systemConfig'
+import { testSyncConnection, runSync, getSyncStatus, getDtrackProjects } from '@/api/sync'
 
 defineOptions({ name: 'SettingsView' })
 
@@ -201,7 +394,8 @@ const allTabs: TabDef[] = [
   { key: 'profile', label: '个人资料', description: '管理个人信息和偏好设置', icon: IconUser },
   { key: 'security', label: '安全设置', description: '密码与安全选项', icon: IconLock, badge: '重要', badgeClass: 'badge-red' },
   { key: 'email', label: '邮件通知', description: 'SMTP 服务器与测试发送', icon: IconNotification, adminOnly: true },
-  { key: 'general', label: '系统配置', description: '站点名称等全局参数', icon: IconSettings, adminOnly: true }
+  { key: 'general', label: '系统配置', description: '站点名称等全局参数', icon: IconSettings, adminOnly: true },
+  { key: 'sync', label: '数据同步', description: 'Dependency-Track 定期同步', icon: IconSync, adminOnly: true }
 ]
 const visibleTabs = computed(() => allTabs.filter(t => !t.adminOnly || isAdmin.value))
 const activeTab = ref('profile')
@@ -324,7 +518,163 @@ const sendTest = async () => {
   }
 }
 
+// ===== 数据同步（DTrack）=====
+const savingSync = ref(false)
+const testingSync = ref(false)
+const testResult = ref<{ ok: boolean; projectCount?: number; message?: string } | null>(null)
+const syncMapping = ref<{ dt: string; asset: string }[]>([])
+const syncAssets = ref<any[]>([])
+const matching = ref(false)
+const syncRunning = ref(false)
+const syncLogs = ref<any[]>([])
+
+const syncForm = reactive<Record<string, any>>({
+  'dtrack.url': '',
+  'dtrack.api_key': '',
+  'dtrack.mapping': '{}',
+  'dtrack.frequency': 'daily',
+  'dtrack.auto_resolve': 'true',
+  'dtrack.refresh_fields': 'true',
+  'dtrack.enrich': 'true'
+})
+const autoResolve = computed({
+  get: () => syncForm['dtrack.auto_resolve'] === 'true',
+  set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
+})
+const autoEnrich = computed({
+  get: () => syncForm['dtrack.enrich'] === 'true',
+  set: (v: boolean) => { syncForm['dtrack.enrich'] = v ? 'true' : 'false' }
+})
+const refreshFields = computed({
+  get: () => syncForm['dtrack.refresh_fields'] === 'true',
+  set: (v: boolean) => { syncForm['dtrack.refresh_fields'] = v ? 'true' : 'false' }
+})
+
+const initSyncTab = async () => {
+  try {
+    const grouped = await getSystemConfigs()
+    if (grouped.dtrack) {
+      Object.keys(syncForm).forEach(k => {
+        if (grouped.dtrack[k] !== undefined) syncForm[k] = grouped.dtrack[k]
+      })
+    }
+    try {
+      const parsed = JSON.parse(syncForm['dtrack.mapping'] || '[]')
+      if (Array.isArray(parsed)) {
+        syncMapping.value = parsed
+      } else if (parsed && typeof parsed === 'object') {
+        // 历史对象格式（{"DTrack项目":"资产"}）转换为行数组
+        syncMapping.value = Object.entries(parsed).map(([dt, asset]) => ({ dt, asset }))
+      } else {
+        syncMapping.value = []
+      }
+    } catch { syncMapping.value = [] }
+  } catch { /* 忽略 */ }
+  loadSyncAssets()
+  loadSyncStatus()
+}
+
+const loadSyncAssets = async () => {
+  try {
+    const { assetApi } = await import('@/api/asset')
+    const r: any = await assetApi.getAssets({ page: 0, size: 100 })
+    syncAssets.value = (r && (r.content || r)) || []
+  } catch { syncAssets.value = [] }
+}
+
+const saveSyncConfig = async () => {
+  savingSync.value = true
+  try {
+    const pairs = syncMapping.value.filter(m => m.dt && m.asset)
+    const obj: Record<string, string> = {}
+    pairs.forEach(m => { obj[m.dt] = m.asset })
+    syncForm['dtrack.mapping'] = JSON.stringify(obj)
+    const payload: Record<string, string> = {}
+    Object.entries(syncForm).forEach(([k, v]) => { payload[k] = String(v ?? '') })
+    await saveSystemConfigs(payload)
+    Message.success('同步配置保存成功')
+  } catch (e) { /* 拦截器已提示 */ } finally { savingSync.value = false }
+}
+
+const testSync = async () => {
+  testingSync.value = true
+  testResult.value = null
+  try {
+    await saveSyncConfig()
+    testResult.value = await testSyncConnection()
+  } catch (e) { /* 拦截器已提示 */ } finally { testingSync.value = false }
+}
+
+const autoMatch = async () => {
+  matching.value = true
+  try {
+    const names = await getDtrackProjects()
+    const assetNames = syncAssets.value.map(a => a.name)
+    const matched = names.filter(n => assetNames.includes(n))
+    if (!matched.length) { Message.warning('没有找到两边同名的项目/资产'); return }
+    matched.forEach(n => {
+      if (!syncMapping.value.some(m => m.dt === n)) syncMapping.value.push({ dt: n, asset: n })
+    })
+    Message.success(`匹配到 ${matched.length} 个同名对，请确认后保存`)
+  } catch (e) { /* 拦截器已提示 */ } finally { matching.value = false }
+}
+
+const loadSyncStatus = async () => {
+  try {
+    const r = await getSyncStatus()
+    syncRunning.value = r.running
+    syncLogs.value = r.logs || []
+  } catch { /* 忽略 */ }
+}
+
+let syncPollTimer: any = null
+const triggerSync = async () => {
+  try {
+    await runSync()
+    Message.success('同步已启动')
+    // 持续轮询直到同步完成（全量比对需 1-3 分钟）
+    if (syncPollTimer) clearInterval(syncPollTimer)
+    let polls = 0
+    syncPollTimer = setInterval(async () => {
+      await loadSyncStatus()
+      polls++
+      if (!syncRunning.value || polls > 40) {
+        clearInterval(syncPollTimer)
+        syncPollTimer = null
+        if (!syncRunning.value) Message.success('同步已完成')
+      }
+    }, 5000)
+  } catch (e) { /* 拦截器已提示 */ }
+}
+
+const formatSyncTime = (t: string) => (t ? String(t).replace('T', ' ').slice(0, 19) : '-')
+
+const toggleLogDetail = (log: any) => { log._open = !log._open }
+// Band 分布统计：按 EMERGENCY>CRITICAL>HIGH>MEDIUM>LOW 顺序输出有值的级别
+const bandSummary = (list: any[]): string => {
+  if (!list || !list.length) return '-'
+  const order = ['EMERGENCY', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+  const counts: Record<string, number> = {}
+  list.forEach(d => {
+    const b = d.band || d.severity || '-'
+    counts[b] = (counts[b] || 0) + 1
+  })
+  return order.filter(k => counts[k]).map(k => `${k} ${counts[k]}`).join(' · ') || '-'
+}
+const parseLogDetail = (log: any): any => {
+  if (log._parsed !== undefined) return log._parsed
+  try {
+    const d = JSON.parse(log.detail || '')
+    log._parsed = (d && (d.assets || d.added || d.resolved || d.updated)) ? d : null
+  } catch { log._parsed = null }
+  return log._parsed
+}
+
 // ===== 初始化 =====
+watch(activeTab, (tab) => {
+  if (tab === 'sync' && isAdmin.value) initSyncTab()
+})
+
 onMounted(async () => {
   try {
     me.value = await getCurrentUser()
@@ -531,4 +881,33 @@ onMounted(async () => {
 .test-input {
   flex: 1;
 }
+.mapping-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.mapping-arrow { color: #94a3b8; }
+.sync-hint { font-size: 12px; color: #94a3b8; margin: 4px 0; }
+.sync-logs { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.sync-log-entry { border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.sync-log-item { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+.sync-log-item:hover { background: var(--surface-hover); }
+.sync-log-toggle { color: var(--primary-600); font-size: 12px; margin-left: auto; }
+.sync-log-detail { margin: 6px 0 8px 0; padding: 10px; background: var(--surface-hover); border-radius: 6px; max-height: 260px; overflow-y: auto; font-size: 12px; }
+.detail-group-title { font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
+.detail-head, .detail-row { display: grid; grid-template-columns: 110px 150px 100px 90px 1fr; gap: 8px; padding: 2px 12px; }
+.detail-head { color: var(--text-primary); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.asset-block { margin-bottom: 12px; }
+.asset-block-title { font-weight: 600; color: var(--primary-600); margin: 8px 0 4px; font-size: 13px; }
+.asset-block-summary { font-weight: 400; color: var(--text-secondary, #64748b); margin-left: 10px; font-size: 12px; }
+.cols-update { grid-template-columns: 150px 110px 100px 140px minmax(170px, 1fr) !important; }
+.cols-update-old { grid-template-columns: 100px 140px 100px 90px 130px minmax(160px, 1fr) !important; }
+.cols-brecalc { grid-template-columns: 100px 140px 90px minmax(160px, 1fr) 100px !important; }
+.detail-head span, .detail-row span { min-width: 0; word-break: break-word; white-space: normal; }
+.detail-band-summary { color: var(--primary-600); font-size: 12px; margin: 2px 0 6px 12px; }
+.detail-row { color: var(--text-secondary, #64748b); }
+.sync-log-time { color: #94a3b8; font-size: 12px; min-width: 140px; }
+.sync-log-summary { color: var(--text-primary); }
+.detail-head.two, .detail-row.two { grid-template-columns: 150px 1fr; }
 </style>
