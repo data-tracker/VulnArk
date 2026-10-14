@@ -627,12 +627,23 @@ const loadSyncStatus = async () => {
   } catch { /* 忽略 */ }
 }
 
+let syncPollTimer: any = null
 const triggerSync = async () => {
   try {
     await runSync()
     Message.success('同步已启动')
-    setTimeout(loadSyncStatus, 3000)
-    setTimeout(loadSyncStatus, 15000)
+    // 持续轮询直到同步完成（全量比对需 1-3 分钟）
+    if (syncPollTimer) clearInterval(syncPollTimer)
+    let polls = 0
+    syncPollTimer = setInterval(async () => {
+      await loadSyncStatus()
+      polls++
+      if (!syncRunning.value || polls > 40) {
+        clearInterval(syncPollTimer)
+        syncPollTimer = null
+        if (!syncRunning.value) Message.success('同步已完成')
+      }
+    }, 5000)
   } catch (e) { /* 拦截器已提示 */ }
 }
 

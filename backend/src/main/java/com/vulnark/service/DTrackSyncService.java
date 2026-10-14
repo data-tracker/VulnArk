@@ -270,6 +270,7 @@ public class DTrackSyncService {
                         v.getCvssScore(), v.getEpssScore(), v.getKev());
                 if (band != null && band != v.getSeverity()) {
                     Map<String, Object> bd = new LinkedHashMap<>();
+                    bd.put("asset", assetNames.getOrDefault(v.getAssetId(), "-"));
                     bd.put("cve", v.getCveId());
                     bd.put("from", String.valueOf(v.getSeverity()));
                     bd.put("to", String.valueOf(band));
