@@ -328,6 +328,11 @@
                       </div>
                     </div>
                   </template>
+                  <div v-if="parseLogDetail(log).descSupplemented" class="detail-row" style="color:#94a3b8">
+                    <span>描述补全</span>
+                    <span>{{ parseLogDetail(log).descSupplemented }} 条（DTrack 官方漏洞描述批量补充，不计入更新）</span>
+                    <span></span><span></span>
+                  </div>
                   <div v-if="parseLogDetail(log).enrich">
                     <div class="detail-group-title">EPSS/KEV 补全（全库）</div>
                     <div class="detail-row" v-if="parseLogDetail(log).enrich.error" style="color:#dc2626">

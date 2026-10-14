@@ -49,6 +49,10 @@ export interface UserQueryRequest {
 // 用户API
 export const userApi = {
   // 获取所有用户
+  getUserOptions: async (): Promise<Array<{ id: number; username: string; fullName?: string }>> => {
+    return request.get('/users/options')
+  },
+
   getAllUsers: async (): Promise<User[]> => {
     return request.get('/users/all') as Promise<User[]>;
   },

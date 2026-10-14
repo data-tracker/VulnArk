@@ -580,7 +580,7 @@ const loadAssets = async () => {
 
 const loadUsers = async () => {
   try {
-    const allUsers = await userApi.getAllUsers()
+    const allUsers = await userApi.getUserOptions()
     
     // 保存用户列表
     users.value = allUsers

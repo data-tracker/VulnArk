@@ -34,7 +34,11 @@ LEVEL_MAP = {'Critical': 'CRITICAL', 'High': 'HIGH', 'Medium': 'MEDIUM',
 AFFECTED_MAP = {'Yes': 'AFFECTED', 'Not': 'NOT_AFFECTED', 'No': 'NOT_AFFECTED'}
 OWNER_MAP = {'Steven.CHEN': 15, 'Juan.WANG': 14}
 
-ASSET_ID = 1          # DAP847-AC
+import sys as _sys
+SHEET_NAME = _sys.argv[2] if len(_sys.argv) > 2 else 'DAP847_CVE_Analysis_20260817'
+ASSET_NAME = _sys.argv[3] if len(_sys.argv) > 3 else 'DAP847-A/C'
+AFFECTED_COL = _sys.argv[4] if len(_sys.argv) > 4 else 'K'
+ASSET_ID = None       # 运行时按名查询
 PROJECT_ID = 5        # 默认项目
 REPORTER_ID = 1       # admin
 DEFAULT_DATE = '2026-08-17'   # 分析基准日（Assess date 为空时使用）
@@ -60,13 +64,23 @@ def main(xlsx_path):
         exec(code, mod)
     read_sheet, sheets = mod['read_sheet'], mod['sheets']
 
-    rows = read_sheet(sheets['DAP847_CVE_Analysis_20260817'])
+    if SHEET_NAME not in sheets:
+        raise SystemExit(f'sheet 不存在: {SHEET_NAME}，可选: {list(sheets)}')
+    rows = read_sheet(sheets[SHEET_NAME])
     data = [r for r in rows[1:] if (r.get('D') or ('', 0))[0]]
 
+    import subprocess as _sp
+    r = _sp.run(COMPOSE, input=f"SELECT id FROM assets WHERE name='{ASSET_NAME}' AND deleted=0", capture_output=True, text=True)
+    lines = [l.strip() for l in r.stdout.strip().split('\n') if l.strip() and l.strip() != 'id']; aid = lines[0] if lines else ''
+    if not aid.isdigit():
+        raise SystemExit(f'资产不存在: {ASSET_NAME}（请先在资产管理中创建）')
+    ASSET_ID = int(aid)
+    print(f'目标资产 {ASSET_NAME!r} -> id={ASSET_ID}')
+
     sqls = [
-        "-- 清空存量漏洞并重置资产计数",
-        "DELETE FROM vulnerabilities;",
-        "UPDATE assets SET vulnerability_count = 0;",
+        "-- 仅清空目标资产的漏洞（其他资产数据保留！）",
+        f"DELETE FROM vulnerabilities WHERE asset_id = {ASSET_ID};",
+        f"UPDATE assets SET vulnerability_count = 0 WHERE id = {ASSET_ID};",
         # 定时同步保护：清空 sync_logs 后定时器会误判"从未同步"而在导入
         # 期间自动触发全量同步。写入 AUTO 占位日志（当前时间）阻止本次窗口触发
         "INSERT INTO sync_logs (sync_time, trigger_type, added, updated, resolved, failed, detail) VALUES (NOW(6), 'AUTO', 0, 0, 0, 0, 'Excel 重导保护占位：清空重导期间抑制自动同步');",
@@ -87,7 +101,7 @@ def main(xlsx_path):
         epss = float(epss) if epss and epss.replace('.', '', 1).isdigit() else None
         kev = 1 if g('H').upper() == 'Y' else 0
         owner = OWNER_MAP.get(g('I'))
-        affected = AFFECTED_MAP.get(g('K'))
+        affected = AFFECTED_MAP.get(g(AFFECTED_COL))
         analysis, fix = g('J'), g('L')
         adate = g('M')
         if adate.replace('.', '', 1).isdigit():

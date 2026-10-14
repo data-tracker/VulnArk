@@ -26,6 +26,25 @@ public class UserManagementController {
     @Autowired
     private UserManagementService userManagementService;
     
+    @Operation(summary = "用户选项（轻量）", description = "仅返回 id/用户名/姓名，所有登录用户可读（负责人下拉等场景）")
+    @GetMapping("/options")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<java.util.Map<String, Object>>> getUserOptions() {
+        try {
+            List<java.util.Map<String, Object>> options = new java.util.ArrayList<>();
+            userManagementService.getAllUsers().forEach(u -> {
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                m.put("id", u.getId());
+                m.put("username", u.getUsername());
+                m.put("fullName", u.getFullName());
+                options.add(m);
+            });
+            return ApiResponse.success("获取成功", options);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
     @Operation(summary = "创建用户")
     @PostMapping
     public ApiResponse<User> createUser(@Valid @RequestBody UserRequest request) {

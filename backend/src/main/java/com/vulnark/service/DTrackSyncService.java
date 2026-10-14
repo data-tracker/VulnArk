@@ -147,6 +147,7 @@ public class DTrackSyncService {
 
             // 明细按资产分块组织：资产名 -> {summary, added, updated, resolved}
             Map<String, Object> assetsDetail = new LinkedHashMap<>();
+            int descSuppTotal = 0;
             for (Map.Entry<String, String> e : mapping.entrySet()) {
                 String dtrackName = e.getKey(), assetName = e.getValue();
                 Map<String, Object> block = new LinkedHashMap<>();
@@ -166,6 +167,7 @@ public class DTrackSyncService {
                     log.setUpdated(log.getUpdated() + (Integer) r.get("updated"));
                     log.setResolved(log.getResolved() + (Integer) r.get("resolved"));
                     log.setFailed(log.getFailed() + (Integer) r.get("failed"));
+                    descSuppTotal += (Integer) r.get("descSupplemented");
                     block.put("added", r.get("addedList"));
                     block.put("updated", r.get("updatedList"));
                     block.put("resolved", r.get("resolvedList"));
@@ -191,6 +193,7 @@ public class DTrackSyncService {
 
             // detail 存 JSON：摘要 + 各类变更的 CVE 明细（前端展开显示）
             Map<String, Object> detailJson = new LinkedHashMap<>();
+            detailJson.put("descSupplemented", descSuppTotal);
             detailJson.put("summary", String.join("\n", details));
             detailJson.put("assets", assetsDetail);
             if (enrichResult != null) detailJson.put("enrich", enrichResult);
@@ -353,7 +356,7 @@ public class DTrackSyncService {
             if (v.getCveId() != null) existingByCve.putIfAbsent(v.getCveId(), v);
         }
 
-        int added = 0, updated = 0, resolvedN = 0, failed = 0;
+        int added = 0, updated = 0, resolvedN = 0, failed = 0, descSupp = 0;
 
         // 新增与刷新
         for (Map.Entry<String, JsonNode> e : dtrackVulns.entrySet()) {
@@ -378,8 +381,12 @@ public class DTrackSyncService {
                     String oldLevel = cur.getCvssLevel() == null ? "-" : String.valueOf(cur.getCvssLevel());
                     String oldScore = cur.getCvssScore() == null ? "-" : String.valueOf(cur.getCvssScore());
                     String oldBand = String.valueOf(cur.getSeverity());
-                    boolean changed = applyRiskFields(cur, dv);
-                    if (changed) {
+                    boolean[] descSuppFlag = {false};
+                    boolean changed = applyRiskFields(cur, dv, descSuppFlag);
+                    if (descSuppFlag[0]) descSupp++;
+                    boolean riskChanged = changed;
+                    if (descSuppFlag[0] && !riskChanged) vulnRepo.save(cur); // 仅描述变化：保存但不计更新
+                    if (riskChanged) {
                         vulnRepo.save(cur); updated++;
                         // 明细记录变化前后值（from -> to），便于追溯
                         Map<String, Object> d = new LinkedHashMap<>();
@@ -403,12 +410,13 @@ public class DTrackSyncService {
         }
 
         // 移除语义：DTrack 不再报告 且 状态=OPEN
+        // 统一策略（用户确认）：无论 source（API 或 Excel 人工导入），DTrack 不再
+        // 报告的待处理 CVE 均自动置已解决并附备注，保留记录不删除
         if (autoResolve) {
             for (Vulnerability v : existing) {
                 if (v.getCveId() == null) continue;
                 if (!dtrackVulns.containsKey(v.getCveId())
-                        && v.getStatus() == Vulnerability.Status.OPEN
-                        && "API".equals(v.getSource())) {
+                        && v.getStatus() == Vulnerability.Status.OPEN) {
                     v.setStatus(Vulnerability.Status.RESOLVED);
                     v.setResolvedDate(LocalDate.now());
                     String note = String.format("[%s] DTrack 不再报告该漏洞（组件可能已升级或移除），自动置为已解决",
@@ -432,6 +440,7 @@ public class DTrackSyncService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("added", added); result.put("updated", updated);
         result.put("resolved", resolvedN); result.put("failed", failed);
+        result.put("descSupplemented", descSupp);
         result.put("addedList", addedList);
         result.put("updatedList", updatedList);
         result.put("resolvedList", resolvedList);
@@ -447,6 +456,10 @@ public class DTrackSyncService {
         v.setTitle(title.length() > 255 ? title.substring(0, 255) : title);
         v.setCveId(cveId);
         StringBuilder desc = new StringBuilder("组件: " + cname + "@" + cver + "\n来源: " + dv.path("source").asText());
+        String dtrackDesc = dv.path("description").asText("");
+        if (!dtrackDesc.isBlank()) {
+            desc.append("\n\n漏洞描述: ").append(dtrackDesc.trim());
+        }
         if (isCve) desc.append("\n\n参考: https://nvd.nist.gov/vuln/detail/").append(cveId);
         v.setDescription(desc.toString());
         v.setStatus(Vulnerability.Status.OPEN);
@@ -457,13 +470,22 @@ public class DTrackSyncService {
         v.setSource(Vulnerability.VulnerabilitySource.API);
         v.setKev(Boolean.FALSE);
         v.setAffectedSystems("依赖组件 " + cname + "@" + cver);
-        applyRiskFields(v, dv);
+        applyRiskFields(v, dv, null);
         return v;
     }
 
     /** 应用风险字段并按 CRA 规则重算 Band；返回是否有变化 */
-    private boolean applyRiskFields(Vulnerability v, JsonNode dv) {
+    private boolean applyRiskFields(Vulnerability v, JsonNode dv, boolean[] descSupp) {
         boolean changed = false;
+        // 补充 DTrack 官方漏洞描述（若缺失则追加，不覆盖已有内容）
+        // 不计入"更新"（量大且重要性低于风险字段变化），单独统计
+        String dtrackDesc = dv.path("description").asText("").trim();
+        if (!dtrackDesc.isBlank() && (v.getDescription() == null
+                || !v.getDescription().contains(dtrackDesc.substring(0, Math.min(50, dtrackDesc.length()))))) {
+            String base = v.getDescription() == null ? "" : v.getDescription();
+            v.setDescription(base + (base.isEmpty() ? "" : "\n\n") + "漏洞描述: " + dtrackDesc);
+            if (descSupp != null) descSupp[0] = true;
+        }
         Double cvss = dv.hasNonNull("cvssV3BaseScore") ? dv.get("cvssV3BaseScore").asDouble()
                 : (dv.hasNonNull("cvssV2BaseScore") ? dv.get("cvssV2BaseScore").asDouble() : null);
         if (cvss != null) {
@@ -490,6 +512,8 @@ public class DTrackSyncService {
         if (Boolean.TRUE.equals(v.getKev())) reasons.add("KEV");
         if (v.getEpssScore() != null && v.getEpssScore().doubleValue() > 0.5) {
             reasons.add("EPSS " + v.getEpssScore() + ">0.5");
+        } else if (v.getEpssScore() == null) {
+            reasons.add("EPSS待补全");  // enrich 步骤稍后补上，可能触发 Band 变化
         }
         if (v.getCvssScore() != null && v.getCvssScore().doubleValue() >= 9.0) {
             reasons.add("CVSS≥9");
