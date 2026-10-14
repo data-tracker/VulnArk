@@ -403,12 +403,13 @@ public class DTrackSyncService {
         }
 
         // 移除语义：DTrack 不再报告 且 状态=OPEN
+        // 统一策略（用户确认）：无论 source（API 或 Excel 人工导入），DTrack 不再
+        // 报告的待处理 CVE 均自动置已解决并附备注，保留记录不删除
         if (autoResolve) {
             for (Vulnerability v : existing) {
                 if (v.getCveId() == null) continue;
                 if (!dtrackVulns.containsKey(v.getCveId())
-                        && v.getStatus() == Vulnerability.Status.OPEN
-                        && "API".equals(v.getSource())) {
+                        && v.getStatus() == Vulnerability.Status.OPEN) {
                     v.setStatus(Vulnerability.Status.RESOLVED);
                     v.setResolvedDate(LocalDate.now());
                     String note = String.format("[%s] DTrack 不再报告该漏洞（组件可能已升级或移除），自动置为已解决",
