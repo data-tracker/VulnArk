@@ -654,7 +654,7 @@ const parseLogDetail = (log: any): any => {
   if (log._parsed !== undefined) return log._parsed
   try {
     const d = JSON.parse(log.detail || '')
-    log._parsed = (d && (d.added || d.resolved || d.updated)) ? d : null
+    log._parsed = (d && (d.assets || d.added || d.resolved || d.updated)) ? d : null
   } catch { log._parsed = null }
   return log._parsed
 }
