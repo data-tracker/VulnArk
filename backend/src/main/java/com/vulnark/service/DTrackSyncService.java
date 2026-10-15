@@ -174,7 +174,7 @@ public class DTrackSyncService {
             helper.setFrom(dn.isEmpty() ? cfg("smtp.from")
                     : new String(dn.getBytes("UTF-8"), "UTF-8") + " <" + cfg("smtp.from") + ">");
             helper.setTo(recipients.split("[,;\s]+"));
-            helper.setSubject(String.format("[漏洞平台] Dependency-Track 同步：新增 %d / 更新 %d / 置已解决 %d",
+            helper.setSubject(String.format("[VulnArk 漏洞管理平台] Dependency-Track 同步：新增 %d / 更新 %d / 置已解决 %d",
                     log.getAdded(), log.getUpdated(), log.getResolved()));
             helper.setText(sb.toString(), true);
             sender.send(msg);
