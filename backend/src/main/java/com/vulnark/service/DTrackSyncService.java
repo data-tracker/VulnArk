@@ -82,7 +82,7 @@ public class DTrackSyncService {
         // 构建邮件正文（HTML）
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body style='font-family: sans-serif; max-width: 800px; margin: 0 auto;'>");
-        sb.append("<h2 style='color: #1a6ee0;'>VulnArk 数据同步报告</h2>");
+        sb.append("<h2 style='color: #1a6ee0;'>Dependency-Track 数据同步报告</h2>");
         sb.append(String.format("<p>时间：%s &nbsp;|&nbsp; 触发：%s</p>",
                 log.getSyncTime().toLocalDate(), "AUTO".equals(log.getTriggerType()) ? "定时" : "手动"));
         sb.append(String.format(
@@ -174,7 +174,7 @@ public class DTrackSyncService {
             helper.setFrom(dn.isEmpty() ? cfg("smtp.from")
                     : new String(dn.getBytes("UTF-8"), "UTF-8") + " <" + cfg("smtp.from") + ">");
             helper.setTo(recipients.split("[,;\s]+"));
-            helper.setSubject(String.format("[VulnArk] 同步报告：新增%d 更新%d 置已解决%d",
+            helper.setSubject(String.format("[漏洞平台] Dependency-Track 同步：新增 %d / 更新 %d / 置已解决 %d",
                     log.getAdded(), log.getUpdated(), log.getResolved()));
             helper.setText(sb.toString(), true);
             sender.send(msg);
