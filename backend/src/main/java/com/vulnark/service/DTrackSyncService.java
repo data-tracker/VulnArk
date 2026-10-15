@@ -170,7 +170,9 @@ public class DTrackSyncService {
 
             jakarta.mail.internet.MimeMessage msg = sender.createMimeMessage();
             org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(msg, "UTF-8");
-            helper.setFrom(cfg("smtp.from"));
+            String dn = cfg("smtp.display_name").trim();
+            helper.setFrom(dn.isEmpty() ? cfg("smtp.from")
+                    : new String(dn.getBytes("UTF-8"), "UTF-8") + " <" + cfg("smtp.from") + ">");
             helper.setTo(recipients.split("[,;\s]+"));
             helper.setSubject(String.format("[VulnArk] 同步报告：新增%d 更新%d 置已解决%d",
                     log.getAdded(), log.getUpdated(), log.getResolved()));

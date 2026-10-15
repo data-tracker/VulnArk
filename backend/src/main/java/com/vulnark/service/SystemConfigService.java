@@ -66,7 +66,17 @@ public class SystemConfigService {
         props.put("mail.smtp.timeout", "10000");
 
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(smtp.getOrDefault("smtp.from", smtp.get("smtp.username")));
+        String fromAddr = smtp.getOrDefault("smtp.from", smtp.get("smtp.username"));
+        String displayName = smtp.getOrDefault("smtp.display_name", "").trim();
+        if (displayName.isEmpty()) {
+            message.setFrom(fromAddr);
+        } else {
+            try {
+                message.setFrom(new jakarta.mail.internet.InternetAddress(fromAddr, displayName, "UTF-8").toString());
+            } catch (java.io.UnsupportedEncodingException e) {
+                message.setFrom(displayName + " <" + fromAddr + ">");
+            }
+        }
         message.setTo(to);
         message.setSubject("VulnArk 邮件配置测试");
         message.setText("这是一封 VulnArk 系统设置的测试邮件。\n\n如果您收到此邮件，说明 SMTP 配置有效。");
