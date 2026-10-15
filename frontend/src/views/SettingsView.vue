@@ -566,10 +566,7 @@ const autoResolve = computed({
   get: () => syncForm['dtrack.auto_resolve'] === 'true',
   set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
 })
-const notifyEnabled = computed({
-  get: () => syncForm['notify.enabled'] === 'true',
-  set: (v: boolean) => { syncForm['notify.enabled'] = v ? 'true' : 'false' }
-})
+const notifyEnabled = ref(false)
 const notifyForm = reactive<Record<string, any>>({
   'notify.recipients': ''
 })
@@ -577,7 +574,7 @@ const saveNotifyConfig = async () => {
   savingConfig.value = true
   try {
     const payload: Record<string, string> = {
-      'notify.enabled': syncForm['notify.enabled'],
+      'notify.enabled': notifyEnabled.value ? 'true' : 'false',
       'notify.recipients': notifyForm['notify.recipients'] || ''
     }
     await saveSystemConfigs(payload)
