@@ -104,31 +104,34 @@ public class DTrackSyncService {
 
                 if (added != null && !added.isEmpty()) {
                     sb.append(String.format("<p style='color: #dc2626; font-weight: bold;'>⚠ 新增 %d 条</p>", added.size()));
-                    sb.append("<ul>");
+                    sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
+                    sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVSS 级别</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>Band</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>标题</th></tr>");
                     for (Map<String, Object> d : added) {
-                        sb.append(String.format("<li><b>%s</b> [%s] %s</li>",
-                                d.get("cve"), d.get("band"), d.get("title")));
+                        sb.append(String.format("<tr><td style='border:1px solid #ddd;padding:5px 10px;'><b>%s</b></td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td></tr>",
+                                d.get("cve"), d.getOrDefault("cvssLevel", "-"), d.get("band"), d.get("title")));
                     }
-                    sb.append("</ul>");
+                    sb.append("</table>");
                 }
                 if (updated != null && !updated.isEmpty()) {
                     sb.append(String.format("<p style='color: #ea580c; font-weight: bold;'>⟳ 更新 %d 条</p>", updated.size()));
-                    sb.append("<ul>");
+                    sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
+                    sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVSS 级别</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>分数</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>Band</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>触发信号</th></tr>");
                     for (Map<String, Object> d : updated) {
-                        String band = String.valueOf(d.get("band"));
-                        String reason = d.containsKey("reason") ? " | " + d.get("reason") : "";
-                        sb.append(String.format("<li><b>%s</b> %s%s</li>",
-                                d.get("cve"), band.contains("→") ? band : "", reason));
+                        sb.append(String.format("<tr><td style='border:1px solid #ddd;padding:5px 10px;'><b>%s</b></td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;color:#1a6ee0;'>%s</td></tr>",
+                                d.get("cve"), d.getOrDefault("cvssLevel", "-"), d.getOrDefault("cvssScore", "-"),
+                                d.get("band"), d.getOrDefault("reason", "-")));
                     }
-                    sb.append("</ul>");
+                    sb.append("</table>");
                 }
                 if (resolved != null && !resolved.isEmpty()) {
                     sb.append(String.format("<p style='color: #16a34a; font-weight: bold;'>✓ 置已解决 %d 条</p>", resolved.size()));
-                    sb.append("<ul>");
+                    sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
+                    sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>标题</th></tr>");
                     for (Map<String, Object> d : resolved) {
-                        sb.append(String.format("<li><b>%s</b> %s</li>", d.get("cve"), d.get("title")));
+                        sb.append(String.format("<tr><td style='border:1px solid #ddd;padding:5px 10px;'><b>%s</b></td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td></tr>",
+                                d.get("cve"), d.get("title")));
                     }
-                    sb.append("</ul>");
+                    sb.append("</table>");
                 }
             }
         }
@@ -138,12 +141,14 @@ public class DTrackSyncService {
         if (enrich != null) {
             List<Map<String, Object>> bandList = (List<Map<String, Object>>) enrich.get("bandRecalcedList");
             if (bandList != null && !bandList.isEmpty()) {
-                sb.append("<h3 style='color: #dc2626;'>🚨 Band 变更告警</h3><ul>");
+                sb.append("<h3 style='color: #dc2626;'>🚨 Band 变更告警</h3>");
+                sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
+                sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>资产</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>原 Band</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>触发信号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>新 Band</th></tr>");
                 for (Map<String, Object> d : bandList) {
-                    sb.append(String.format("<li><b>%s</b> [%s]: %s → <span style='color:#dc2626;font-weight:bold;'>%s</span> (%s)</li>",
-                            d.get("cve"), d.get("asset"), d.get("from"), d.get("to"), d.get("reason")));
+                    sb.append(String.format("<tr><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'><b>%s</b></td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;color:#1a6ee0;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;color:#dc2626;font-weight:bold;'>%s</td></tr>",
+                            d.getOrDefault("asset", "-"), d.get("cve"), d.get("from"), d.get("reason"), d.get("to")));
                 }
-                sb.append("</ul>");
+                sb.append("</table>");
             }
         }
 
