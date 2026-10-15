@@ -104,6 +104,7 @@ public class DTrackSyncService {
 
                 if (added != null && !added.isEmpty()) {
                     sb.append(String.format("<p style='color: #dc2626; font-weight: bold;'>⚠ 新增 %d 条</p>", added.size()));
+                    sb.append(String.format("<p style='font-size:12px;color:#666;'>Band 分布：%s</p>", bandDistribution(added)));
                     sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
                     sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVSS 级别</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>Band</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>标题</th></tr>");
                     for (Map<String, Object> d : added) {
@@ -114,6 +115,7 @@ public class DTrackSyncService {
                 }
                 if (updated != null && !updated.isEmpty()) {
                     sb.append(String.format("<p style='color: #ea580c; font-weight: bold;'>⟳ 更新 %d 条</p>", updated.size()));
+                    sb.append(String.format("<p style='font-size:12px;color:#666;'>Band 分布：%s</p>", bandDistribution(updated)));
                     sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
                     sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVSS 级别</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>分数</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>Band</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>触发信号</th></tr>");
                     for (Map<String, Object> d : updated) {
@@ -571,6 +573,18 @@ public class DTrackSyncService {
         } catch (Exception e) {
             logger.warn("资产统计刷新失败: {}", e.getMessage());
         }
+        // 按 Band 级别从高到低排序
+        java.util.Comparator<String> bandOrder = java.util.Comparator.comparingInt((String b) -> {
+            switch (b) { case "EMERGENCY": return 0; case "CRITICAL": return 1;
+                case "HIGH": return 2; case "MEDIUM": return 3; default: return 4; }
+        });
+        addedList.sort((a, b) -> bandOrder.compare(
+                String.valueOf(a.getOrDefault("band", "LOW")),
+                String.valueOf(b.getOrDefault("band", "LOW"))));
+        updatedList.sort((a, b) -> bandOrder.compare(
+                String.valueOf(a.getOrDefault("band", "LOW")),
+                String.valueOf(b.getOrDefault("band", "LOW"))));
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("added", added); result.put("updated", updated);
         result.put("resolved", resolvedN); result.put("failed", failed);
@@ -641,6 +655,21 @@ public class DTrackSyncService {
     /**
      * Band 变化的触发信号说明：标注哪些风险信号命中了 CRA 规则
      */
+    /** Band 分布统计字符串 */
+    private String bandDistribution(List<Map<String, Object>> list) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (Map<String, Object> d : list) {
+            String band = String.valueOf(d.getOrDefault("band", "LOW")).split("\u2192")[0].trim();
+            counts.merge(band, 1, Integer::sum);
+        }
+        String[] order = {"EMERGENCY", "CRITICAL", "HIGH", "MEDIUM", "LOW"};
+        List<String> parts = new ArrayList<>();
+        for (String b : order) {
+            if (counts.containsKey(b)) parts.add(b + " " + counts.get(b));
+        }
+        return String.join(" · ", parts);
+    }
+
     private String bandReason(Vulnerability v) {
         List<String> reasons = new ArrayList<>();
         if (Boolean.TRUE.equals(v.getKev())) reasons.add("KEV");
