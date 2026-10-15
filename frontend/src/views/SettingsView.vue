@@ -142,6 +142,20 @@
           </div>
 
           <div class="panel-card">
+            <h3 class="panel-title">同步通知</h3>
+            <p class="test-hint">数据同步完成后，如有变更，自动发送邮件报告（全 0 同步不发信）</p>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="启用同步通知">
+                <a-switch v-model="notifyEnabled" />
+              </a-form-item>
+              <a-form-item label="收件人列表" help="多个邮箱用英文逗号分隔">
+                <a-input v-model="notifyForm['notify.recipients']" placeholder="admin@example.com, user2@example.com" />
+              </a-form-item>
+            </a-form>
+            <a-button type="primary" :loading="savingConfig" @click="saveNotifyConfig">保存通知配置</a-button>
+          </div>
+
+          <div class="panel-card">
             <h3 class="panel-title">发送测试邮件</h3>
             <p class="test-hint">使用当前表单中的配置发送测试邮件（无需先保存），用于验证配置是否有效</p>
             <div class="test-row">
@@ -540,12 +554,32 @@ const syncForm = reactive<Record<string, any>>({
   'dtrack.frequency': 'daily',
   'dtrack.auto_resolve': 'true',
   'dtrack.refresh_fields': 'true',
-  'dtrack.enrich': 'true'
+  'dtrack.enrich': 'true',
+  'notify.enabled': 'false',
+  'notify.recipients': ''
 })
 const autoResolve = computed({
   get: () => syncForm['dtrack.auto_resolve'] === 'true',
   set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
 })
+const notifyEnabled = computed({
+  get: () => syncForm['notify.enabled'] === 'true',
+  set: (v: boolean) => { syncForm['notify.enabled'] = v ? 'true' : 'false' }
+})
+const notifyForm = reactive<Record<string, any>>({
+  'notify.recipients': ''
+})
+const saveNotifyConfig = async () => {
+  savingConfig.value = true
+  try {
+    const payload: Record<string, string> = {
+      'notify.enabled': syncForm['notify.enabled'],
+      'notify.recipients': notifyForm['notify.recipients'] || ''
+    }
+    await saveSystemConfigs(payload)
+    Message.success('通知配置保存成功')
+  } catch (e) { /* 拦截器已提示 */ } finally { savingConfig.value = false }
+}
 const autoEnrich = computed({
   get: () => syncForm['dtrack.enrich'] === 'true',
   set: (v: boolean) => { syncForm['dtrack.enrich'] = v ? 'true' : 'false' }

@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.Properties;
 
 /**
  * Dependency-Track 定期同步服务。
@@ -60,6 +61,125 @@ public class DTrackSyncService {
 
     public boolean isConfigured() {
         return !cfg("dtrack.url").isEmpty() && !cfg("dtrack.api_key").isEmpty();
+    }
+
+    /**
+     * 同步完成后发送邮件通知（有变更时才发，全 0 不发防骚扰）
+     */
+    private void sendSyncNotification(SyncLog log, Map<String, Object> detailJson) {
+        if (!Boolean.parseBoolean(cfg("notify.enabled"))) return;
+        if (log.getAdded() == 0 && log.getUpdated() == 0 && log.getResolved() == 0
+                && log.getFailed() == 0) {
+            logger.info("同步无变更，跳过通知邮件");
+            return;
+        }
+        String recipients = cfg("notify.recipients");
+        if (recipients == null || recipients.isBlank()) {
+            logger.info("通知收件人未配置，跳过");
+            return;
+        }
+
+        // 构建邮件正文（HTML）
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body style='font-family: sans-serif; max-width: 800px; margin: 0 auto;'>");
+        sb.append("<h2 style='color: #1a6ee0;'>VulnArk 数据同步报告</h2>");
+        sb.append(String.format("<p>时间：%s &nbsp;|&nbsp; 触发：%s</p>",
+                log.getSyncTime().toLocalDate(), "AUTO".equals(log.getTriggerType()) ? "定时" : "手动"));
+        sb.append(String.format(
+                "<p><b>新增 %d</b> · <b>更新 %d</b> · <b>置已解决 %d</b> · 失败 %d</p>",
+                log.getAdded(), log.getUpdated(), log.getResolved(), log.getFailed()));
+
+        // 按资产分块
+        Map<String, Object> assets = (Map<String, Object>) detailJson.get("assets");
+        if (assets != null) {
+            for (Map.Entry<String, Object> e : assets.entrySet()) {
+                Map<String, Object> blk = (Map<String, Object>) e.getValue();
+                List<Map<String, Object>> added = (List<Map<String, Object>>) blk.get("added");
+                List<Map<String, Object>> resolved = (List<Map<String, Object>>) blk.get("resolved");
+                List<Map<String, Object>> updated = (List<Map<String, Object>>) blk.get("updated");
+                if ((added == null || added.isEmpty()) && (resolved == null || resolved.isEmpty())
+                        && (updated == null || updated.isEmpty())) continue;
+
+                sb.append(String.format("<h3 style='color: #333; border-bottom: 2px solid #1a6ee0; padding-bottom: 4px;'>资产：%s</h3>", e.getKey()));
+
+                if (added != null && !added.isEmpty()) {
+                    sb.append(String.format("<p style='color: #dc2626; font-weight: bold;'>⚠ 新增 %d 条</p>", added.size()));
+                    sb.append("<ul>");
+                    for (Map<String, Object> d : added) {
+                        sb.append(String.format("<li><b>%s</b> [%s] %s</li>",
+                                d.get("cve"), d.get("band"), d.get("title")));
+                    }
+                    sb.append("</ul>");
+                }
+                if (updated != null && !updated.isEmpty()) {
+                    sb.append(String.format("<p style='color: #ea580c; font-weight: bold;'>⟳ 更新 %d 条</p>", updated.size()));
+                    sb.append("<ul>");
+                    for (Map<String, Object> d : updated) {
+                        String band = String.valueOf(d.get("band"));
+                        String reason = d.containsKey("reason") ? " | " + d.get("reason") : "";
+                        sb.append(String.format("<li><b>%s</b> %s%s</li>",
+                                d.get("cve"), band.contains("→") ? band : "", reason));
+                    }
+                    sb.append("</ul>");
+                }
+                if (resolved != null && !resolved.isEmpty()) {
+                    sb.append(String.format("<p style='color: #16a34a; font-weight: bold;'>✓ 置已解决 %d 条</p>", resolved.size()));
+                    sb.append("<ul>");
+                    for (Map<String, Object> d : resolved) {
+                        sb.append(String.format("<li><b>%s</b> %s</li>", d.get("cve"), d.get("title")));
+                    }
+                    sb.append("</ul>");
+                }
+            }
+        }
+
+        // Band 重算告警
+        Map<String, Object> enrich = (Map<String, Object>) detailJson.get("enrich");
+        if (enrich != null) {
+            List<Map<String, Object>> bandList = (List<Map<String, Object>>) enrich.get("bandRecalcedList");
+            if (bandList != null && !bandList.isEmpty()) {
+                sb.append("<h3 style='color: #dc2626;'>🚨 Band 变更告警</h3><ul>");
+                for (Map<String, Object> d : bandList) {
+                    sb.append(String.format("<li><b>%s</b> [%s]: %s → <span style='color:#dc2626;font-weight:bold;'>%s</span> (%s)</li>",
+                            d.get("cve"), d.get("asset"), d.get("from"), d.get("to"), d.get("reason")));
+                }
+                sb.append("</ul>");
+            }
+        }
+
+        sb.append("<hr style='border: none; border-top: 1px solid #ddd; margin: 20px 0;'>");
+        sb.append("<p style='color: #888; font-size: 12px;'>此邮件由 VulnArk 自动发送 · 全 0 同步不发信</p>");
+        sb.append("</body></html>");
+
+        // 发送
+        try {
+            org.springframework.mail.javamail.JavaMailSenderImpl sender = new org.springframework.mail.javamail.JavaMailSenderImpl();
+            sender.setHost(cfg("smtp.host"));
+            sender.setPort(Integer.parseInt(cfg("smtp.port")));
+            sender.setUsername(cfg("smtp.username"));
+            sender.setPassword(cfg("smtp.password"));
+            sender.setDefaultEncoding("UTF-8");
+            Properties props = sender.getJavaMailProperties();
+            boolean ssl = Boolean.parseBoolean(cfg("smtp.ssl"));
+            props.put("mail.transport.protocol", "smtp");
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.ssl.enable", String.valueOf(ssl));
+            props.put("mail.smtp.starttls.enable", String.valueOf(!ssl));
+            props.put("mail.smtp.connectiontimeout", "10000");
+            props.put("mail.smtp.timeout", "30000");
+
+            jakarta.mail.internet.MimeMessage msg = sender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(msg, "UTF-8");
+            helper.setFrom(cfg("smtp.from"));
+            helper.setTo(recipients.split("[,;\s]+"));
+            helper.setSubject(String.format("[VulnArk] 同步报告：新增%d 更新%d 置已解决%d",
+                    log.getAdded(), log.getUpdated(), log.getResolved()));
+            helper.setText(sb.toString(), true);
+            sender.send(msg);
+            logger.info("同步通知邮件已发送至 {}", recipients);
+        } catch (Exception e) {
+            throw new RuntimeException("邮件发送失败: " + e.getMessage(), e);
+        }
     }
 
     // ===== DTrack HTTP =====
@@ -198,6 +318,13 @@ public class DTrackSyncService {
             detailJson.put("assets", assetsDetail);
             if (enrichResult != null) detailJson.put("enrich", enrichResult);
             log.setDetail(MAPPER.writeValueAsString(detailJson));
+
+            // ===== 同步邮件通知（有变更时才发）=====
+            try {
+                sendSyncNotification(log, detailJson);
+            } catch (Exception e) {
+                logger.error("同步通知邮件发送失败: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.setFailed(log.getFailed() + 1);
             log.setDetail("同步失败: " + e.getMessage());
