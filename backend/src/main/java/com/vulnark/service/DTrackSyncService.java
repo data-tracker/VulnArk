@@ -126,12 +126,13 @@ public class DTrackSyncService {
                     sb.append("</table>");
                 }
                 if (resolved != null && !resolved.isEmpty()) {
-                    sb.append(String.format("<p style='color: #16a34a; font-weight: bold;'>✓ 置已解决 %d 条</p>", resolved.size()));
+                    sb.append(String.format("<p style='color: #16a34a; font-weight: bold;'>✓ 置已解决 %d 条 <span style='font-weight:normal;font-size:12px;color:#999;'>(DTrack 不再报告该漏洞，组件可能已升级或移除)</span></p>", resolved.size()));
+                    sb.append(String.format("<p style='font-size:12px;color:#666;'>Band 分布：%s</p>", bandDistribution(resolved)));
                     sb.append("<table style='border-collapse:collapse;width:100%;font-size:13px;margin:8px 0;'>");
-                    sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>标题</th></tr>");
+                    sb.append("<tr style='background:#f1f5f9;'><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVE 编号</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>CVSS 级别</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>Band</th><th style='border:1px solid #ddd;padding:6px 10px;text-align:left;'>标题</th></tr>");
                     for (Map<String, Object> d : resolved) {
-                        sb.append(String.format("<tr><td style='border:1px solid #ddd;padding:5px 10px;'><b>%s</b></td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td></tr>",
-                                d.get("cve"), d.get("title")));
+                        sb.append(String.format("<tr><td style='border:1px solid #ddd;padding:5px 10px;'><b>%s</b></td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td><td style='border:1px solid #ddd;padding:5px 10px;'>%s</td></tr>",
+                                d.get("cve"), d.getOrDefault("cvssLevel", "-"), d.get("band"), d.get("title")));
                     }
                     sb.append("</table>");
                 }
@@ -563,6 +564,8 @@ public class DTrackSyncService {
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("asset", asset.getName());
                     d.put("cve", v.getCveId()); d.put("title", v.getTitle());
+                    d.put("cvssLevel", v.getCvssLevel() == null ? "-" : String.valueOf(v.getCvssLevel()));
+                    d.put("band", String.valueOf(v.getSeverity()));
                     resolvedList.add(d);
                 }
             }
@@ -582,6 +585,9 @@ public class DTrackSyncService {
                 String.valueOf(a.getOrDefault("band", "LOW")),
                 String.valueOf(b.getOrDefault("band", "LOW"))));
         updatedList.sort((a, b) -> bandOrder.compare(
+                String.valueOf(a.getOrDefault("band", "LOW")),
+                String.valueOf(b.getOrDefault("band", "LOW"))));
+        resolvedList.sort((a, b) -> bandOrder.compare(
                 String.valueOf(a.getOrDefault("band", "LOW")),
                 String.valueOf(b.getOrDefault("band", "LOW"))));
 
