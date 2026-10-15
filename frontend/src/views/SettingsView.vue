@@ -132,7 +132,7 @@
                 <a-input v-model="emailForm['smtp.from']" placeholder="noreply@example.com" />
               </a-form-item>
               <a-form-item label="发件人显示名称" help="邮件客户端展示的发件人名称，如团队名">
-                <a-input v-model="emailForm['smtp.display_name']" placeholder="HAN Networks PSIRT" />
+                <a-input v-model="emailForm['smtp.display_name']" placeholder="如：XX公司 PSIRT" />
               </a-form-item>
               <a-form-item label="加密方式">
                 <a-radio-group v-model="emailForm['smtp.ssl']">
@@ -489,7 +489,7 @@ const emailForm = reactive<Record<string, any>>({
   'smtp.username': '',
   'smtp.password': '',
   'smtp.from': '',
-  'smtp.display_name': 'HAN Networks PSIRT',
+  'smtp.display_name': '',
   'smtp.ssl': 'true'
 })
 const emailEnabled = computed({
