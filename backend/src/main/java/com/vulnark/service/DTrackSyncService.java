@@ -534,9 +534,12 @@ public class DTrackSyncService {
                         d.put("cvssLevel", oldLevel.equals(newLevel) ? newLevel : oldLevel + "→" + newLevel);
                         d.put("cvssScore", oldScore.equals(newScore) ? newScore : oldScore + "→" + newScore);
                         d.put("band", oldBand.equals(newBand) ? newBand : oldBand + "→" + newBand);
-                        if (!oldBand.equals(newBand)) {
-                            d.put("reason", bandReason(cur));
-                        }
+                        // 始终输出触发信号（无论 Band 是否变化）
+                        String reasonStr = bandReason(cur);
+                        d.put("reason", "-".equals(reasonStr) ? reasonStr : reasonStr);
+                        logger.info("更新明细: {} reason={} epss={} kev={} cvss={}",
+                                cveId, reasonStr,
+                                cur.getEpssScore(), cur.getKev(), cur.getCvssScore());
                         updatedList.add(d);
                     }
                 }
