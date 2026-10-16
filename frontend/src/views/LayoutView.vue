@@ -20,6 +20,7 @@
         mode="vertical"
         theme="light"
         class="layout-menu"
+        :level-indent="28"
         @menu-item-click="onMenuClick"
       >
         <a-menu-item key="/dashboard">
@@ -290,10 +291,8 @@ const openSettings = () => {
   background: transparent !important;
 }
 
-.layout-menu :deep(.arco-menu-sub .arco-menu-item) {
-  margin: 2px 16px 2px 32px;
-  /* Arco 通过内联 style 设置子菜单层级缩进，需 !important 覆盖 */
-  padding-left: 40px !important;
+.layout-menu :deep(.arco-menu-inline .arco-menu-item) {
+  margin: 2px 16px;
 }
 
 .layout-header {
