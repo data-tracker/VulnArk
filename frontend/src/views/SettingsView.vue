@@ -187,7 +187,7 @@
             <h3 class="panel-title">Dependency-Track 连接</h3>
             <a-form layout="vertical" class="form-narrow">
               <a-form-item label="API 地址">
-                <a-input v-model="syncForm['dtrack.url']" placeholder="http://192.168.20.162:8081" />
+                <a-input v-model="syncForm['dtrack.url']" placeholder="http://dtrack-server:8081" />
               </a-form-item>
               <a-form-item label="API Key">
                 <a-input-password v-model="syncForm['dtrack.api_key']" placeholder="Dependency-Track API Key" />
