@@ -44,8 +44,8 @@
       <!-- 数据同步 -->
       <div class="chart-card sync-dashboard-card">
         <div class="chart-header">
-          <h3>🔄 数据同步</h3>
-          <a-link @click="goToSyncDetail">同步日志 →</a-link>
+          <h3>数据同步</h3>
+          <a-link @click="goToSyncDetail">同步日志</a-link>
         </div>
         <div class="sync-dashboard-content">
           <template v-if="syncDash.lastSync">
@@ -263,7 +263,12 @@ const formatSyncDashTime = (t: string) => {
   if (!t) return '-'
   return t.replace('T', ' ').slice(0, 16)
 }
-const goToSyncDetail = () => router.push('/settings')
+const goToSyncDetail = () => router.push('/settings').then(() => {
+  // 触发页签切换到数据同步（通过 URL query 或事件）
+  // 简单方案：设置一个全局标志，SettingsView watch 它
+  window.sessionStorage.setItem('goto_sync_tab', '1')
+  window.dispatchEvent(new Event('goto-sync-tab'))
+})
 
 const loadDashboardData = async() => {
   try {
