@@ -328,6 +328,20 @@ const openSettings = () => {
   background: var(--surface-hover);
 }
 
+/* 子菜单标题与普通菜单项对齐（图标尺寸/垂直居中） */
+:deep(.arco-menu-inline .arco-menu-inline-header) {
+  display: flex;
+  align-items: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+:deep(.arco-menu-inline .arco-menu-inline-header .arco-icon) {
+  font-size: 18px;
+}
+:deep(.arco-menu-inline .arco-menu-inline-header .arco-menu-icon-suffix) {
+  margin-left: auto;
+}
+
 .user-avatar {
   background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
   color: white;
