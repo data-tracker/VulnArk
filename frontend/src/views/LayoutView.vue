@@ -99,6 +99,10 @@
             <!-- 用户下拉菜单 -->
             <a-dropdown>
               <div class="user-info">
+                <icon-question-circle-fill
+                  :size="20"
+                  style="cursor: pointer; color: var(--text-secondary, #94a3b8); margin-right: 14px; flex-shrink: 0;"
+                  @click="router.push('/help')" />
                 <a-avatar :size="32" class="user-avatar">
                   {{ userStore.user?.fullName?.charAt(0) || 'U' }}
                 </a-avatar>
@@ -145,6 +149,7 @@ import {
   IconFindReplace,
   IconUser,
   IconSettings,
+  IconQuestionCircleFill,
   IconPoweroff,
   IconSun,
   IconMoon

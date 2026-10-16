@@ -77,6 +77,12 @@ const routes: Array<RouteRecordRaw> = [
         name: 'Settings',
         component: () => import('@/views/SettingsView.vue'),
         meta: { title: '系统设置' }
+      },
+      {
+        path: '/help',
+        name: 'Help',
+        component: () => import('@/views/HelpView.vue'),
+        meta: { title: '帮助中心' }
       }
     ]
   },
