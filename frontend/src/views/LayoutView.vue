@@ -291,8 +291,8 @@ const openSettings = () => {
 }
 
 .layout-menu :deep(.arco-menu-sub .arco-menu-item) {
-  margin: 2px 16px;
-  padding-left: 24px;
+  margin: 2px 16px 2px 32px;
+  padding-left: 40px;
 }
 
 .layout-header {
