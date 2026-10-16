@@ -206,6 +206,9 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+// 是否管理员（控制用户管理/系统设置等菜单可见性）
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+
 // ===== 设置入口（跳转设置页，页面内按角色显示管理页签）=====
 const openSettings = () => {
   router.push('/settings')
