@@ -292,7 +292,8 @@ const openSettings = () => {
 
 .layout-menu :deep(.arco-menu-sub .arco-menu-item) {
   margin: 2px 16px 2px 32px;
-  padding-left: 40px;
+  /* Arco 通过内联 style 设置子菜单层级缩进，需 !important 覆盖 */
+  padding-left: 40px !important;
 }
 
 .layout-header {
