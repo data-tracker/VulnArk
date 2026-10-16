@@ -60,7 +60,7 @@
           <a-menu-item key="/baseline-check">基线检查</a-menu-item>
         </a-sub-menu>
         
-        <a-menu-item key="/users">
+        <a-menu-item v-if="isAdmin" key="/users">
           <template #icon>
             <icon-user />
           </template>
@@ -72,6 +72,13 @@
             <icon-settings />
           </template>
           系统设置
+        </a-menu-item>
+
+        <a-menu-item key="/help">
+          <template #icon>
+            <icon-question-circle-fill />
+          </template>
+          帮助中心
         </a-menu-item>
       </a-menu>
     </a-layout-sider>
@@ -113,12 +120,6 @@
                   </template>
                   个人信息
                 </a-doption>
-                <a-doption @click="openSettings">
-                  <template #icon>
-                    <icon-settings />
-                  </template>
-                  系统设置
-                </a-doption>
                 <a-doption @click="handleLogout">
                   <template #icon>
                     <icon-poweroff />
@@ -151,6 +152,7 @@ import {
   IconFindReplace,
   IconUser,
   IconSettings,
+  IconQuestionCircleFill,
   IconPoweroff,
   IconSun,
   IconMoon
@@ -211,6 +213,9 @@ const handleLogout = () => {
   Message.success('退出登录成功')
   router.push('/login')
 }
+
+// 是否管理员（控制用户管理/系统设置等菜单可见性）
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
 // ===== 设置入口（跳转设置页，页面内按角色显示管理页签）=====
 const openSettings = () => {

@@ -41,12 +41,50 @@
         <div class="chart-content" ref="severityChartRef"></div>
       </div>
 
-      <!-- 资产状态 -->
-      <div class="chart-card">
+      <!-- 数据同步 -->
+      <div class="chart-card sync-dashboard-card">
         <div class="chart-header">
-          <h3>资产状态</h3>
+          <h3>数据同步</h3>
+          <a-link @click="goToSyncDetail">同步日志</a-link>
         </div>
-        <div class="chart-content" ref="assetChartRef"></div>
+        <div class="sync-dashboard-content">
+          <template v-if="syncDash.lastSync">
+            <div class="sync-status-line">
+              <span :class="['sync-dot', syncDash.lastSync.failed > 0 ? 'err' : 'ok']"></span>
+              <span class="sync-time">{{ formatSyncDashTime(syncDash.lastSync.time) }}</span>
+              <span class="sync-trigger">{{ syncDash.lastSync.triggerType === 'AUTO' ? '定时' : '手动' }}</span>
+            </div>
+            <div class="sync-stats-row">
+              <div class="sync-stat"><span class="num">{{ syncDash.lastSync.added }}</span><span class="lbl">新增</span></div>
+              <div class="sync-stat"><span class="num">{{ syncDash.lastSync.updated }}</span><span class="lbl">更新</span></div>
+              <div class="sync-stat"><span class="num">{{ syncDash.lastSync.resolved }}</span><span class="lbl">置已解决</span></div>
+              <div class="sync-stat"><span class="num" :class="{ 'err-num': syncDash.lastSync.failed > 0 }">{{ syncDash.lastSync.failed }}</span><span class="lbl">失败</span></div>
+            </div>
+            <div v-if="syncDash.bandAlerts.length" class="sync-alerts">
+              <div class="sync-alerts-title">🚨 Band 升级告警</div>
+              <div v-for="a in syncDash.bandAlerts.slice(0, 3)" :key="a.cve" class="sync-alert-item">
+                <span class="alert-cve">{{ a.cve }}</span>
+                <span class="alert-asset">[{{ a.asset }}]</span>
+                <span class="alert-band">{{ a.from }} → <b class="alert-to">{{ a.to }}</b></span>
+                <span class="alert-reason">{{ a.reason }}</span>
+              </div>
+              <div v-if="syncDash.bandAlerts.length > 3" class="alert-more">
+                ...还有 {{ syncDash.bandAlerts.length - 3 }} 条，<a-link @click="goToSyncDetail">查看日志</a-link>
+              </div>
+            </div>
+            <div v-else class="sync-no-alert">✓ 无 Band 变更告警</div>
+            <div v-if="syncDash.perAsset.length" class="sync-per-asset">
+              <div v-for="pa in syncDash.perAsset" :key="pa.asset" class="per-asset-row">
+                <span class="pa-name">{{ pa.asset }}</span>
+                <span class="pa-stats">新增{{ pa.added }} · 更新{{ pa.updated }} · 解决{{ pa.resolved }}</span>
+              </div>
+            </div>
+          </template>
+          <div v-else class="sync-empty">
+            <p>暂无同步记录</p>
+            <a-button size="small" @click="goToSyncDetail">去配置同步</a-button>
+          </div>
+        </div>
       </div>
 
       <!-- 最近活动 -->
@@ -130,7 +168,6 @@ const authStore = useAuthStore()
 // 图表引用
 const trendChartRef = ref<HTMLElement>()
 const severityChartRef = ref<HTMLElement>()
-const assetChartRef = ref<HTMLElement>()
 
 // 数据状态
 const loading = ref(false)
@@ -215,7 +252,25 @@ const quickActions = [
 ]
 
 // 加载仪表盘统计数据
-const loadDashboardData = async () => {
+const syncDash = ref<any>({ lastSync: null, bandAlerts: [], perAsset: [] })
+const loadSyncDash = async () => {
+  try {
+    const { getSyncDashboard } = await import('@/api/sync')
+    syncDash.value = await getSyncDashboard()
+  } catch { /* 忽略 */ }
+}
+const formatSyncDashTime = (t: string) => {
+  if (!t) return '-'
+  return t.replace('T', ' ').slice(0, 16)
+}
+const goToSyncDetail = () => router.push('/settings').then(() => {
+  // 触发页签切换到数据同步（通过 URL query 或事件）
+  // 简单方案：设置一个全局标志，SettingsView watch 它
+  window.sessionStorage.setItem('goto_sync_tab', '1')
+  window.dispatchEvent(new Event('goto-sync-tab'))
+})
+
+const loadDashboardData = async() => {
   try {
     const data = await getDashboardStats()
     
@@ -438,57 +493,6 @@ const getSeverityColor = (severity: string) => {
 }
 
 // 初始化资产状态图表
-const initAssetChart = () => {
-  if (!assetChartRef.value) return
-  
-  const chart = echarts.init(assetChartRef.value)
-  
-  const data = assetTypeData.value && assetTypeData.value.length > 0 ? {
-    categories: assetTypeData.value.map(item => getAssetStatusDisplayName(item.status)),
-    values: assetTypeData.value.map(item => item.count)
-  } : {
-    categories: ['暂无数据'],
-    values: [0]
-  }
-  
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: data.categories
-    },
-    yAxis: {
-      type: 'value'
-    },
-    series: [
-      {
-        name: '资产数量',
-        type: 'bar',
-        data: data.values,
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#3b82f6' },
-            { offset: 1, color: '#1d4ed8' }
-          ])
-        }
-      }
-    ]
-  }
-  chart.setOption(option)
-  
-  window.addEventListener('resize', () => chart.resize())
-}
 
 // 获取资产状态显示名称
 const getAssetStatusDisplayName = (status: string) => {
@@ -507,6 +511,7 @@ const loadAllData = async () => {
     loading.value = true
     await Promise.all([
       loadDashboardData(),
+      loadSyncDash(),
       loadVulnerabilityTrends(),
       loadSeverityData(),
       loadAssetTypeData(),
@@ -525,8 +530,7 @@ const refreshCharts = () => {
   nextTick(() => {
     initTrendChart()
     initSeverityChart()
-    initAssetChart()
-  })
+      })
 }
 
 // 监听时间周期变化
@@ -780,4 +784,32 @@ onMounted(async () => {
     gap: var(--spacing-sm);
   }
 }
+.sync-dashboard-card { display: flex; flex-direction: column; }
+.sync-dashboard-content { padding: 8px 16px; flex: 1; overflow-y: auto; max-height: 320px; }
+.sync-status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.sync-dot.ok { background: #16a34a; }
+.sync-dot.err { background: #dc2626; }
+.sync-time { color: var(--text-primary); font-weight: 500; }
+.sync-trigger { font-size: 12px; color: #94a3b8; }
+.sync-stats-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.sync-stat { flex: 1; background: var(--surface-hover, #f8fafc); border-radius: 6px; padding: 10px; text-align: center; }
+.sync-stat .num { display: block; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.sync-stat .num.err-num { color: #dc2626; }
+.sync-stat .lbl { font-size: 11px; color: #94a3b8; }
+.sync-alerts { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 10px; }
+.sync-alerts-title { font-size: 12px; color: #dc2626; font-weight: 600; margin-bottom: 6px; }
+.sync-alert-item { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; margin-bottom: 4px; align-items: center; }
+.alert-cve { font-weight: 600; color: var(--text-primary); }
+.alert-asset { color: #94a3b8; }
+.alert-band { color: #64748b; }
+.alert-to { color: #dc2626; }
+.alert-reason { color: #1a6ee0; font-size: 11px; }
+.alert-more { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+.sync-no-alert { font-size: 12px; color: #16a34a; border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 10px; }
+.sync-per-asset { border-top: 1px solid var(--border); padding-top: 8px; }
+.per-asset-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+.pa-name { color: var(--text-primary); font-weight: 500; }
+.pa-stats { color: #94a3b8; }
+.sync-empty { text-align: center; padding: 40px 0; color: #94a3b8; }
 </style> 

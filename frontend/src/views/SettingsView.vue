@@ -384,7 +384,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import {
   IconUser,
@@ -718,6 +718,18 @@ const parseLogDetail = (log: any): any => {
 }
 
 // ===== 初始化 =====
+// 监听仪表板'同步日志'跳转事件
+const onGotoSyncTab = () => { activeTab.value = 'sync' }
+onMounted(() => {
+  window.addEventListener('goto-sync-tab', onGotoSyncTab)
+  // 兼容直接刷新（sessionStorage 有标记时自动切换）
+  if (window.sessionStorage.getItem('goto_sync_tab') === '1') {
+    window.sessionStorage.removeItem('goto_sync_tab')
+    activeTab.value = 'sync'
+  }
+})
+onUnmounted(() => window.removeEventListener('goto-sync-tab', onGotoSyncTab))
+
 watch(activeTab, (tab) => {
   if (tab === 'sync' && isAdmin.value) initSyncTab()
 })
