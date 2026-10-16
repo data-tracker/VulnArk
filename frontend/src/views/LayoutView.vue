@@ -328,10 +328,21 @@ const openSettings = () => {
   background: var(--surface-hover);
 }
 
-/* 子菜单标题与普通菜单项对齐：仅垂直居中，不改尺寸（padding 与菜单项一致） */
+/* 子菜单标题与普通菜单项完全同款盒模型（margin/圆角/高度/图标尺寸） */
 :deep(.arco-menu-inline .arco-menu-inline-header) {
   display: flex;
   align-items: center;
+  margin: 4px 8px;
+  border-radius: var(--radius-lg);
+  line-height: 36px;
+}
+:deep(.arco-menu-inline .arco-menu-inline-header .arco-menu-icon) {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 12px;
+}
+:deep(.arco-menu-inline .arco-menu-inline-header .arco-icon) {
+  font-size: 16px;
 }
 :deep(.arco-menu-inline .arco-menu-inline-header .arco-menu-icon-suffix) {
   margin-left: auto;
