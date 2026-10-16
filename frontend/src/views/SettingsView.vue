@@ -603,12 +603,20 @@ const initSyncTab = async () => {
       if (Array.isArray(parsed)) {
         syncMapping.value = parsed
       } else if (parsed && typeof parsed === 'object') {
-        // 历史对象格式（{"DTrack项目":"资产"}）转换为行数组
         syncMapping.value = Object.entries(parsed).map(([dt, asset]) => ({ dt, asset }))
       } else {
         syncMapping.value = []
       }
     } catch { syncMapping.value = [] }
+    // 加载通知配置
+    try {
+      if (grouped.notify) {
+        notifyEnabled.value = grouped.notify['notify.enabled'] === 'true'
+        if (grouped.notify['notify.recipients'] !== undefined) {
+          notifyForm['notify.recipients'] = grouped.notify['notify.recipients']
+        }
+      }
+    } catch { /* 忽略 */ }
   } catch { /* 忽略 */ }
   loadSyncAssets()
   loadSyncStatus()
