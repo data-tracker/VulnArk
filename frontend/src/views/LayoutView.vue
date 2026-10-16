@@ -20,6 +20,7 @@
         mode="vertical"
         theme="light"
         class="layout-menu"
+        :level-indent="28"
         @menu-item-click="onMenuClick"
       >
         <a-menu-item key="/dashboard">
@@ -290,9 +291,8 @@ const openSettings = () => {
   background: transparent !important;
 }
 
-.layout-menu :deep(.arco-menu-sub .arco-menu-item) {
+.layout-menu :deep(.arco-menu-inline .arco-menu-item) {
   margin: 2px 16px;
-  padding-left: 24px;
 }
 
 .layout-header {
@@ -328,15 +328,21 @@ const openSettings = () => {
   background: var(--surface-hover);
 }
 
-/* 子菜单标题与普通菜单项对齐（图标尺寸/垂直居中） */
+/* 子菜单标题与普通菜单项完全同款盒模型（margin/圆角/高度/图标尺寸） */
 :deep(.arco-menu-inline .arco-menu-inline-header) {
   display: flex;
   align-items: center;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  margin: 4px 8px;
+  border-radius: var(--radius-lg);
+  line-height: 36px;
+}
+:deep(.arco-menu-inline .arco-menu-inline-header .arco-menu-icon) {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 12px;
 }
 :deep(.arco-menu-inline .arco-menu-inline-header .arco-icon) {
-  font-size: 18px;
+  font-size: 16px;
 }
 :deep(.arco-menu-inline .arco-menu-inline-header .arco-menu-icon-suffix) {
   margin-left: auto;
