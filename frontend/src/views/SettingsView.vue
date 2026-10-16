@@ -144,19 +144,6 @@
             </a-form>
           </div>
 
-          <div class="panel-card">
-            <h3 class="panel-title">同步通知</h3>
-            <p class="test-hint">数据同步完成后，如有变更，自动发送邮件报告（全 0 同步不发信）</p>
-            <a-form layout="vertical" class="form-narrow">
-              <a-form-item label="启用同步通知">
-                <a-switch v-model="notifyEnabled" />
-              </a-form-item>
-              <a-form-item label="收件人列表" help="多个邮箱用英文逗号分隔">
-                <a-input v-model="notifyForm['notify.recipients']" placeholder="admin@example.com, user2@example.com" />
-              </a-form-item>
-            </a-form>
-            <a-button type="primary" :loading="savingConfig" @click="saveNotifyConfig">保存通知配置</a-button>
-          </div>
 
           <div class="panel-card">
             <h3 class="panel-title">发送测试邮件</h3>
@@ -254,6 +241,20 @@
               </a-form-item>
             </a-form>
             <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
+          </div>
+
+          <div class="panel-card">
+            <h3 class="panel-title">同步通知</h3>
+            <p class="sync-hint">数据同步完成后，如有变更，自动发送邮件报告（全 0 同步不发信）。SMTP 配置在"邮件通知"页签。</p>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="启用同步通知">
+                <a-switch v-model="notifyEnabled" />
+              </a-form-item>
+              <a-form-item label="收件人列表" help="输入邮箱后回车添加，点标签 × 删除">
+                <a-input-tag v-model="notifyRecipients" placeholder="输入邮箱后回车添加" allow-clear unique-value />
+              </a-form-item>
+            </a-form>
+            <a-button type="primary" :loading="savingConfig" @click="saveNotifyConfig">保存通知配置</a-button>
           </div>
 
           <div class="panel-card">
@@ -567,15 +568,13 @@ const autoResolve = computed({
   set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
 })
 const notifyEnabled = ref(false)
-const notifyForm = reactive<Record<string, any>>({
-  'notify.recipients': ''
-})
+const notifyRecipients = ref<string[]>([])
 const saveNotifyConfig = async () => {
   savingConfig.value = true
   try {
     const payload: Record<string, string> = {
       'notify.enabled': notifyEnabled.value ? 'true' : 'false',
-      'notify.recipients': notifyForm['notify.recipients'] || ''
+      'notify.recipients': notifyRecipients.value.join(',')
     }
     await saveSystemConfigs(payload)
     Message.success('通知配置保存成功')
@@ -613,7 +612,7 @@ const initSyncTab = async () => {
       if (grouped.notify) {
         notifyEnabled.value = grouped.notify['notify.enabled'] === 'true'
         if (grouped.notify['notify.recipients'] !== undefined) {
-          notifyForm['notify.recipients'] = grouped.notify['notify.recipients']
+          notifyRecipients.value = (grouped.notify['notify.recipients'] || '').split(',').map(s => s.trim()).filter(Boolean)
         }
       }
     } catch { /* 忽略 */ }
