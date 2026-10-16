@@ -60,7 +60,7 @@
           <a-menu-item key="/baseline-check">基线检查</a-menu-item>
         </a-sub-menu>
         
-        <a-menu-item key="/users">
+        <a-menu-item v-if="isAdmin" key="/users">
           <template #icon>
             <icon-user />
           </template>
@@ -112,12 +112,6 @@
                     <icon-user />
                   </template>
                   个人信息
-                </a-doption>
-                <a-doption @click="openSettings">
-                  <template #icon>
-                    <icon-settings />
-                  </template>
-                  系统设置
                 </a-doption>
                 <a-doption @click="handleLogout">
                   <template #icon>
