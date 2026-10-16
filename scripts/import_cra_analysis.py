@@ -35,8 +35,10 @@ AFFECTED_MAP = {'Yes': 'AFFECTED', 'Not': 'NOT_AFFECTED', 'No': 'NOT_AFFECTED'}
 OWNER_MAP = {'Steven.CHEN': 15, 'Juan.WANG': 14}
 
 import sys as _sys
-SHEET_NAME = _sys.argv[2] if len(_sys.argv) > 2 else 'DAP847_CVE_Analysis_20260817'
-ASSET_NAME = _sys.argv[3] if len(_sys.argv) > 3 else 'DAP847-A/C'
+SHEET_NAME = _sys.argv[2] if len(_sys.argv) > 2 else None
+ASSET_NAME = _sys.argv[3] if len(_sys.argv) > 3 else None
+if not SHEET_NAME or not ASSET_NAME:
+    raise SystemExit('用法: import_cra_analysis.py <xlsx路径> <sheet名> <资产名> [Affected列号]\n示例: python3 scripts/import_cra_analysis.py "Vulnerability Analysis CRA.xlsx" DAP847_CVE_Analysis_20260817 DAP847-A/C K')
 AFFECTED_COL = _sys.argv[4] if len(_sys.argv) > 4 else 'K'
 ASSET_ID = None       # 运行时按名查询
 PROJECT_ID = 5        # 默认项目
@@ -96,9 +98,15 @@ def main(xlsx_path):
         band = BAND_MAP.get(g('C'))
         level = LEVEL_MAP.get(g('E'))
         score = g('F')
-        score = float(score) if score and score.replace('.', '', 1).isdigit() else None
+        try:
+            score = float(score) if score else None
+        except (ValueError, OverflowError):
+            score = None
         epss = g('G')
-        epss = float(epss) if epss and epss.replace('.', '', 1).isdigit() else None
+        try:
+            epss = float(epss) if epss else None  # 支持科学计数法（如 3.14E-3）
+        except (ValueError, OverflowError):
+            epss = None
         kev = 1 if g('H').upper() == 'Y' else 0
         owner = OWNER_MAP.get(g('I'))
         affected = AFFECTED_MAP.get(g(AFFECTED_COL))

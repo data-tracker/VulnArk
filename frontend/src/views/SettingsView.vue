@@ -131,6 +131,9 @@
               <a-form-item label="发件人地址">
                 <a-input v-model="emailForm['smtp.from']" placeholder="noreply@example.com" />
               </a-form-item>
+              <a-form-item label="发件人显示名称" help="邮件客户端展示的发件人名称，如团队名">
+                <a-input v-model="emailForm['smtp.display_name']" placeholder="如：XX公司 PSIRT" />
+              </a-form-item>
               <a-form-item label="加密方式">
                 <a-radio-group v-model="emailForm['smtp.ssl']">
                   <a-radio value="true">SSL (465)</a-radio>
@@ -140,6 +143,7 @@
               <a-button type="primary" :loading="savingConfig" @click="saveConfig('email')">保存设置</a-button>
             </a-form>
           </div>
+
 
           <div class="panel-card">
             <h3 class="panel-title">发送测试邮件</h3>
@@ -170,7 +174,7 @@
             <h3 class="panel-title">Dependency-Track 连接</h3>
             <a-form layout="vertical" class="form-narrow">
               <a-form-item label="API 地址">
-                <a-input v-model="syncForm['dtrack.url']" placeholder="http://192.168.20.162:8081" />
+                <a-input v-model="syncForm['dtrack.url']" placeholder="http://dtrack-server:8081" />
               </a-form-item>
               <a-form-item label="API Key">
                 <a-input-password v-model="syncForm['dtrack.api_key']" placeholder="Dependency-Track API Key" />
@@ -237,6 +241,20 @@
               </a-form-item>
             </a-form>
             <a-button type="primary" :loading="savingSync" @click="saveSyncConfig">保存策略</a-button>
+          </div>
+
+          <div class="panel-card">
+            <h3 class="panel-title">同步通知</h3>
+            <p class="sync-hint">数据同步完成后，如有变更，自动发送邮件报告（全 0 同步不发信）。SMTP 配置在"邮件通知"页签。</p>
+            <a-form layout="vertical" class="form-narrow">
+              <a-form-item label="启用同步通知">
+                <a-switch v-model="notifyEnabled" />
+              </a-form-item>
+              <a-form-item label="收件人列表" help="输入邮箱后回车添加，点标签 × 删除">
+                <a-input-tag v-model="notifyRecipients" placeholder="输入邮箱后回车添加" allow-clear unique-value />
+              </a-form-item>
+            </a-form>
+            <a-button type="primary" :loading="savingConfig" @click="saveNotifyConfig">保存通知配置</a-button>
           </div>
 
           <div class="panel-card">
@@ -472,6 +490,7 @@ const emailForm = reactive<Record<string, any>>({
   'smtp.username': '',
   'smtp.password': '',
   'smtp.from': '',
+  'smtp.display_name': '',
   'smtp.ssl': 'true'
 })
 const emailEnabled = computed({
@@ -540,12 +559,27 @@ const syncForm = reactive<Record<string, any>>({
   'dtrack.frequency': 'daily',
   'dtrack.auto_resolve': 'true',
   'dtrack.refresh_fields': 'true',
-  'dtrack.enrich': 'true'
+  'dtrack.enrich': 'true',
+  'notify.enabled': 'false',
+  'notify.recipients': ''
 })
 const autoResolve = computed({
   get: () => syncForm['dtrack.auto_resolve'] === 'true',
   set: (v: boolean) => { syncForm['dtrack.auto_resolve'] = v ? 'true' : 'false' }
 })
+const notifyEnabled = ref(false)
+const notifyRecipients = ref<string[]>([])
+const saveNotifyConfig = async () => {
+  savingConfig.value = true
+  try {
+    const payload: Record<string, string> = {
+      'notify.enabled': notifyEnabled.value ? 'true' : 'false',
+      'notify.recipients': notifyRecipients.value.join(',')
+    }
+    await saveSystemConfigs(payload)
+    Message.success('通知配置保存成功')
+  } catch (e) { /* 拦截器已提示 */ } finally { savingConfig.value = false }
+}
 const autoEnrich = computed({
   get: () => syncForm['dtrack.enrich'] === 'true',
   set: (v: boolean) => { syncForm['dtrack.enrich'] = v ? 'true' : 'false' }
@@ -568,12 +602,20 @@ const initSyncTab = async () => {
       if (Array.isArray(parsed)) {
         syncMapping.value = parsed
       } else if (parsed && typeof parsed === 'object') {
-        // 历史对象格式（{"DTrack项目":"资产"}）转换为行数组
         syncMapping.value = Object.entries(parsed).map(([dt, asset]) => ({ dt, asset }))
       } else {
         syncMapping.value = []
       }
     } catch { syncMapping.value = [] }
+    // 加载通知配置
+    try {
+      if (grouped.notify) {
+        notifyEnabled.value = grouped.notify['notify.enabled'] === 'true'
+        if (grouped.notify['notify.recipients'] !== undefined) {
+          notifyRecipients.value = (grouped.notify['notify.recipients'] || '').split(',').map(s => s.trim()).filter(Boolean)
+        }
+      }
+    } catch { /* 忽略 */ }
   } catch { /* 忽略 */ }
   loadSyncAssets()
   loadSyncStatus()
@@ -689,6 +731,8 @@ onMounted(async () => {
     profileForm.phone = me.value?.phone || ''
   } catch (e) { /* 拦截器已提示 */ }
   loadConfigs()
+  // 覆盖直接刷新到 sync 页签或 URL 带 ?tab=sync 的场景
+  if (isAdmin.value) initSyncTab()
 })
 </script>
 
