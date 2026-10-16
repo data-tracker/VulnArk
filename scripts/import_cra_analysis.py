@@ -96,9 +96,15 @@ def main(xlsx_path):
         band = BAND_MAP.get(g('C'))
         level = LEVEL_MAP.get(g('E'))
         score = g('F')
-        score = float(score) if score and score.replace('.', '', 1).isdigit() else None
+        try:
+            score = float(score) if score else None
+        except (ValueError, OverflowError):
+            score = None
         epss = g('G')
-        epss = float(epss) if epss and epss.replace('.', '', 1).isdigit() else None
+        try:
+            epss = float(epss) if epss else None  # 支持科学计数法（如 3.14E-3）
+        except (ValueError, OverflowError):
+            epss = None
         kev = 1 if g('H').upper() == 'Y' else 0
         owner = OWNER_MAP.get(g('I'))
         affected = AFFECTED_MAP.get(g(AFFECTED_COL))
