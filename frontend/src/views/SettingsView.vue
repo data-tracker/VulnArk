@@ -732,6 +732,8 @@ onMounted(async () => {
     profileForm.phone = me.value?.phone || ''
   } catch (e) { /* 拦截器已提示 */ }
   loadConfigs()
+  // 覆盖直接刷新到 sync 页签或 URL 带 ?tab=sync 的场景
+  if (isAdmin.value) initSyncTab()
 })
 </script>
 
