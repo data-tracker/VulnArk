@@ -12,6 +12,7 @@ VulnArk 漏洞周报生成与发送
   实际发送:           python3 scripts/weekly_report.py --to a@x.com,b@x.com
   （--to 缺省时使用平台配置的 notify.recipients）
 """
+import os
 import subprocess
 import sys
 import json
@@ -28,8 +29,9 @@ COMPOSE = ['docker', 'compose', 'exec', '-T', 'mysql', 'sh', '-c',
 
 
 def q(sql: str) -> str:
+    import os
     r = subprocess.run(COMPOSE, input=sql, capture_output=True, text=True,
-                       cwd='/home/sc/Downloads/VulnArk/VulnArk-fork')
+                       cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if r.returncode != 0:
         raise RuntimeError(f'MySQL 查询失败: {r.stderr[:200]}')
     return r.stdout
@@ -272,7 +274,7 @@ def main():
     html = build_html(d, start, end)
 
     if args.preview:
-        out = '/home/sc/Downloads/VulnArk/weekly_report_preview.html'
+        out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'weekly_report_preview.html')
         open(out, 'w').write(html)
         print(f'预览已生成: {out}')
         return
