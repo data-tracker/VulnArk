@@ -141,8 +141,10 @@ def build_html(d, start, end):
     # 二、本周动态
     sb.append(f"<h3 {H3}>二、本周动态（数据同步）</h3>")
     if d['sync']:
-        for asset, s in d['sync'].items():
+        for asset in sorted(set(list(d['sync'].keys()) + list(d['band'].keys()))):
+            s = d['sync'].get(asset, {'added': 0, 'updated': 0, 'resolved': 0, 'addedBands': {}})
             if not (s['added'] or s['updated'] or s['resolved']):
+                sb.append(f"<p {P}><b>{asset}</b>　本周无同步变更</p>")
                 continue
             ab = ' · '.join(f"{BAND_CN.get(b, b)} {n}" for b, n in
                             sorted(s['addedBands'].items(), key=lambda x: BANDS.index(x[0]) if x[0] in BANDS else 9))
@@ -180,6 +182,21 @@ def build_html(d, start, end):
 
     # 四、重点风险
     sb.append(f"<h3 {H3}>四、重点风险（范围内未分析）</h3>")
+    # 汇总：资产 × 级别
+    summary = {}
+    for name, cve, sev, epss, kev in d['unanalyzed']:
+        summary.setdefault(name, {}).setdefault(sev, 0)
+        summary[name][sev] += 1
+    if summary:
+        sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>紧急（EMERGENCY）</th><th {TH}>严重（CRITICAL）</th><th {TH}>合计</th></tr>")
+        for name in sorted(summary.keys()):
+            e = summary[name].get('EMERGENCY', 0)
+            c = summary[name].get('CRITICAL', 0)
+            sb.append(f"<tr><td {TD}><b>{name}</b></td>"
+                      f"<td {TD} style='color:#dc2626;font-weight:bold;'>{e or '-'}</td>"
+                      f"<td {TD} style='color:#ea580c;'>{c or '-'}</td>"
+                      f"<td {TD}>{e + c}</td></tr>")
+        sb.append("</table>")
     if d['unanalyzed']:
         sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>级别</th><th {TH}>EPSS</th><th {TH}>触发信号</th></tr>")
         for name, cve, sev, epss, kev in d['unanalyzed'][:20]:
