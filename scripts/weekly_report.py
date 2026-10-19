@@ -182,21 +182,19 @@ def build_html(d, start, end):
 
     # 四、重点风险
     sb.append(f"<h3 {H3}>四、重点风险（范围内未分析）</h3>")
-    # 汇总：资产 × 级别
+    # 汇总：行式（与第二节风格一致）
     summary = {}
     for name, cve, sev, epss, kev in d['unanalyzed']:
         summary.setdefault(name, {}).setdefault(sev, 0)
         summary[name][sev] += 1
     if summary:
-        sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>紧急（EMERGENCY）</th><th {TH}>严重（CRITICAL）</th><th {TH}>合计</th></tr>")
         for name in sorted(summary.keys()):
             e = summary[name].get('EMERGENCY', 0)
             c = summary[name].get('CRITICAL', 0)
-            sb.append(f"<tr><td {TD}><b>{name}</b></td>"
-                      f"<td {TD} style='color:#dc2626;font-weight:bold;'>{e or '-'}</td>"
-                      f"<td {TD} style='color:#ea580c;'>{c or '-'}</td>"
-                      f"<td {TD}>{e + c}</td></tr>")
-        sb.append("</table>")
+            sb.append(f"<p {P}><b>{name}</b>　未分析 {e + c} 条"
+                      + (f"（<span style='color:#dc2626;font-weight:bold;'>紧急 {e}</span>" if e else "（")
+                      + (f" · <span style='color:#ea580c;'>严重 {c}</span>" if c else "")
+                      + "）</p>")
     if d['unanalyzed']:
         sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>级别</th><th {TH}>EPSS</th><th {TH}>触发信号</th></tr>")
         for name, cve, sev, epss, kev in d['unanalyzed'][:20]:
