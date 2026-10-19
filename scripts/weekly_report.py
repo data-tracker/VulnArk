@@ -139,7 +139,7 @@ def band_line(dist: dict) -> str:
 def build_html(d, start, end):
     sb = []
     sb.append("<html><body style='font-family:sans-serif;max-width:800px;margin:0 auto;'>")
-    sb.append(f"<h2 style='color:#1a6ee0;'>漏洞管理周报</h2>")
+    sb.append(f"<h2 style='color:#1a6ee0;'>安全漏洞管理周报</h2>")
     sb.append(f"<p {P}>统计周期：{start:%m/%d} - {end:%m/%d} · 数据截至 {end:%m/%d %H:%M}</p>")
 
     # 一、总体概况
@@ -241,7 +241,7 @@ def send(html, cfg, to_list):
     from_addr = f"{dn} <{frm}>" if dn else frm
 
     msg = MIMEText(html, 'html', 'utf-8')
-    msg['Subject'] = Header(f'[VulnArk 周报] 漏洞管理概况 {datetime.now():%m/%d}', 'utf-8')
+    msg['Subject'] = Header(f'[VulnArk 周报] 安全漏洞管理概况 {datetime.now():%m/%d}', 'utf-8')
     msg['From'] = Header(from_addr, 'utf-8') if dn else frm
     msg['To'] = ', '.join(to_list)
 
