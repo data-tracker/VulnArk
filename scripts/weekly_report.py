@@ -233,7 +233,7 @@ def build_html(d, start, end):
 
 
 # ===== 发送 =====
-def send(html, cfg, to_list):
+def send(html, cfg, to_list, cc_list=None):
     host, port = cfg['smtp.host'], int(cfg.get('smtp.port', '465'))
     user, pwd = cfg['smtp.username'], cfg['smtp.password']
     frm = cfg.get('smtp.from') or user
@@ -244,6 +244,8 @@ def send(html, cfg, to_list):
     msg['Subject'] = Header(f'[VulnArk 周报] 安全漏洞管理概况 {datetime.now():%m/%d}', 'utf-8')
     msg['From'] = Header(from_addr, 'utf-8') if dn else frm
     msg['To'] = ', '.join(to_list)
+    if cc_list:
+        msg['Cc'] = ', '.join(cc_list)
 
     import ssl
     ctx = ssl.create_default_context()
@@ -253,14 +255,15 @@ def send(html, cfg, to_list):
         s = smtplib.SMTP(host, port, timeout=30)
         s.starttls(context=ctx)
     s.login(user, pwd)
-    s.sendmail(frm, to_list, msg.as_string())
+    s.sendmail(frm, to_list + (cc_list or []), msg.as_string())
     s.close()
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--preview', action='store_true', help='只生成不发送')
-    ap.add_argument('--to', help='收件人（逗号分隔），缺省用平台配置')
+    ap.add_argument('--to', help='收件人 To（逗号分隔），缺省用平台配置')
+    ap.add_argument('--cc', help='抄送人 Cc（逗号分隔）')
     args = ap.parse_args()
 
     d = collect()
@@ -276,10 +279,11 @@ def main():
 
     to_list = ([t.strip() for t in args.to.split(',')] if args.to
                else [t.strip() for t in (d['cfg'].get('notify.recipients') or '').split(',') if t.strip()])
+    cc_list = [t.strip() for t in args.cc.split(',')] if args.cc else []
     if not to_list:
         sys.exit('未指定收件人（--to 或平台 notify.recipients）')
-    send(html, d['cfg'], to_list)
-    print(f'周报已发送至: {", ".join(to_list)}')
+    send(html, d['cfg'], to_list, cc_list)
+    print(f'周报已发送 至: {", ".join(to_list)}' + (f' 抄送: {", ".join(cc_list)}' if cc_list else ''))
 
 
 if __name__ == '__main__':
