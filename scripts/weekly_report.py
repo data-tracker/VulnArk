@@ -112,6 +112,9 @@ def collect():
                                AND v.verification_status IS NULL
                              ORDER BY FIELD(v.severity,'EMERGENCY','CRITICAL'), v.epss_score DESC""")
 
+    # 4.5 CVE -> 当前分析状态（过滤已确认不受影响的 Band 升级）
+    d['vstatus'] = {r[0]: r[1] for r in rows("SELECT cve_id, verification_status FROM vulnerabilities WHERE deleted=0 AND verification_status IS NOT NULL")}
+
     # 5. SMTP / 收件人配置
     cfg = {r[0]: r[1] for r in rows(
         "SELECT config_key, config_value FROM system_configs WHERE config_key LIKE 'smtp.%' OR config_key='notify.recipients'")}
@@ -159,7 +162,8 @@ def build_html(d, start, end):
             sb.append(f"<p {P}><b>{asset}</b>　新增 {s['added']}"
                       + (f"（{ab}）" if ab else "")
                       + f" · 更新 {s['updated']} · 置已解决 {s['resolved']}</p>")
-        ups = [u for u in d['band_ups'] if u.get('to') in ('EMERGENCY', 'CRITICAL')]
+        ups = [u for u in d['band_ups'] if u.get('to') in ('EMERGENCY', 'CRITICAL')
+               and d.get('vstatus', {}).get(u.get('cve')) not in ('NOT_AFFECTED', 'FALSE_POSITIVE')]
         if ups:
             sb.append(f"<p {P}><b>本周 Band 升级（升至紧急/严重）</b></p><table {TBL}>"
                       f"<tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>变化</th><th {TH}>触发信号</th></tr>")
