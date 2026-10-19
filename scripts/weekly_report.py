@@ -78,13 +78,21 @@ def collect():
             for it in (blk.get('added') or []):
                 b = str(it.get('band', 'LOW')).split('→')[-1].strip()
                 s['addedBands'][b] = s['addedBands'].get(b, 0) + 1
+            # 更新路径的 Band 升级（band 含 from→to 且目标为 E/C）
+            for it in (blk.get('updated') or []):
+                b = str(it.get('band', ''))
+                if '→' in b:
+                    frm, to = [x.strip() for x in b.split('→')]
+                    if to in ('EMERGENCY', 'CRITICAL'):
+                        band_ups.append({'asset': it.get('asset', asset), 'cve': it.get('cve'),
+                                         'from': frm, 'to': to, 'reason': it.get('reason', '-')})
         for it in ((j.get('enrich') or {}).get('bandRecalcedList') or []):
             band_ups.append(it)
     d['sync'] = sync
     # Band 升级按 CVE 去重（多轮同步可能重复记录同一升级，保留最新）
     seen = {}
     for u in band_ups:
-        seen[(u.get('cve'), u.get('from'), u.get('to'))] = u
+        seen[(u.get('asset'), u.get('cve'), u.get('from'), u.get('to'))] = u
     d['band_ups'] = list(seen.values())
 
     # 3. E+C 范围内分析进展（按资产）
