@@ -559,9 +559,7 @@ const syncForm = reactive<Record<string, any>>({
   'dtrack.frequency': 'daily',
   'dtrack.auto_resolve': 'true',
   'dtrack.refresh_fields': 'true',
-  'dtrack.enrich': 'true',
-  'notify.enabled': 'false',
-  'notify.recipients': ''
+  'dtrack.enrich': 'true'
 })
 const autoResolve = computed({
   get: () => syncForm['dtrack.auto_resolve'] === 'true',
@@ -636,8 +634,11 @@ const saveSyncConfig = async () => {
     const obj: Record<string, string> = {}
     pairs.forEach(m => { obj[m.dt] = m.asset })
     syncForm['dtrack.mapping'] = JSON.stringify(obj)
+    // 白名单：只提交 dtrack.* 配置，避免误覆盖其他组（曾因残留键重置通知配置）
     const payload: Record<string, string> = {}
-    Object.entries(syncForm).forEach(([k, v]) => { payload[k] = String(v ?? '') })
+    Object.entries(syncForm).forEach(([k, v]) => {
+      if (k.startsWith('dtrack.')) payload[k] = String(v ?? '')
+    })
     await saveSystemConfigs(payload)
     Message.success('同步配置保存成功')
   } catch (e) { /* 拦截器已提示 */ } finally { savingSync.value = false }
