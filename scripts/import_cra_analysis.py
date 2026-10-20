@@ -92,7 +92,7 @@ def main(xlsx_path):
     for r in data:
         g = lambda c: str((r.get(c) or ('',))[0] or '').strip()
         cve = g('D')
-        if not cve.startswith('CVE-'):
+        if not (cve.startswith('CVE-') or cve.startswith('GHSA-')):
             skip += 1
             continue
         comp, ver = g('A'), g('B')
