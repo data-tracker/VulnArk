@@ -59,7 +59,8 @@ def esc(v):
 def main(xlsx_path):
     # 解析 Excel：复用工作区的手工解析器源码（替换其内嵌的文件路径）
     with contextlib.redirect_stdout(io.StringIO()):
-        code = open('../scripts/read_cra_xlsx.py').read().replace(
+        import os
+        code = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'read_cra_xlsx.py')).read().replace(
             "zipfile.ZipFile('Vulnerability Analysis CRA.xlsx')",
             f"zipfile.ZipFile({xlsx_path!r})")
         mod = {}
