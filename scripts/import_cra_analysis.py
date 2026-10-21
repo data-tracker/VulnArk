@@ -32,7 +32,7 @@ BAND_MAP = {'Emergency': 'EMERGENCY', 'Critical': 'CRITICAL', 'High': 'HIGH',
 LEVEL_MAP = {'Critical': 'CRITICAL', 'High': 'HIGH', 'Medium': 'MEDIUM',
              'Low': 'LOW', 'None': 'NONE'}
 AFFECTED_MAP = {'Yes': 'AFFECTED', 'Not': 'NOT_AFFECTED', 'No': 'NOT_AFFECTED'}
-OWNER_MAP = {'Steven.CHEN': 15, 'Juan.WANG': 14}
+OWNER_MAP = {'Steven.CHEN': 15, 'Juan.WANG': 14, 'WangJuan': 14, 'Wang Juan': 14}
 
 import sys as _sys
 SHEET_NAME = _sys.argv[2] if len(_sys.argv) > 2 else None
@@ -59,7 +59,8 @@ def esc(v):
 def main(xlsx_path):
     # 解析 Excel：复用工作区的手工解析器源码（替换其内嵌的文件路径）
     with contextlib.redirect_stdout(io.StringIO()):
-        code = open('../scripts/read_cra_xlsx.py').read().replace(
+        import os
+        code = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'read_cra_xlsx.py')).read().replace(
             "zipfile.ZipFile('Vulnerability Analysis CRA.xlsx')",
             f"zipfile.ZipFile({xlsx_path!r})")
         mod = {}
@@ -91,7 +92,7 @@ def main(xlsx_path):
     for r in data:
         g = lambda c: str((r.get(c) or ('',))[0] or '').strip()
         cve = g('D')
-        if not cve.startswith('CVE-'):
+        if not (cve.startswith('CVE-') or cve.startswith('GHSA-')):
             skip += 1
             continue
         comp, ver = g('A'), g('B')
