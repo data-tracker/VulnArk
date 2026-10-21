@@ -32,7 +32,7 @@ BAND_MAP = {'Emergency': 'EMERGENCY', 'Critical': 'CRITICAL', 'High': 'HIGH',
 LEVEL_MAP = {'Critical': 'CRITICAL', 'High': 'HIGH', 'Medium': 'MEDIUM',
              'Low': 'LOW', 'None': 'NONE'}
 AFFECTED_MAP = {'Yes': 'AFFECTED', 'Not': 'NOT_AFFECTED', 'No': 'NOT_AFFECTED'}
-OWNER_MAP = {'Steven.CHEN': 15, 'Juan.WANG': 14, 'WangJuan': 14, 'Wang Juan': 14}
+# Owner 不硬编码：导入时动态从 users 表按 username/full_name 匹配（忽略大小写）
 
 import sys as _sys
 SHEET_NAME = _sys.argv[2] if len(_sys.argv) > 2 else None
@@ -73,6 +73,16 @@ def main(xlsx_path):
     data = [r for r in rows[1:] if (r.get('D') or ('', 0))[0]]
 
     import subprocess as _sp
+    # 动态加载用户映射
+    ru = _sp.run(COMPOSE, input="SELECT id, username, COALESCE(full_name,'') FROM users WHERE deleted=0",
+                 capture_output=True, text=True)
+    owner_map = {}
+    for line in ru.stdout.strip().split('\n'):
+        parts = [x.strip() for x in line.split('\t')]
+        if len(parts) == 3 and parts[0].isdigit():
+            uid, uname, fname = parts
+            if uname: owner_map[uname.lower()] = int(uid)
+            if fname: owner_map[fname.lower()] = int(uid)
     r = _sp.run(COMPOSE, input=f"SELECT id FROM assets WHERE name='{ASSET_NAME}' AND deleted=0", capture_output=True, text=True)
     lines = [l.strip() for l in r.stdout.strip().split('\n') if l.strip() and l.strip() != 'id']; aid = lines[0] if lines else ''
     if not aid.isdigit():
@@ -89,6 +99,7 @@ def main(xlsx_path):
         "INSERT INTO sync_logs (sync_time, trigger_type, added, updated, resolved, failed, detail) VALUES (NOW(6), 'AUTO', 0, 0, 0, 0, 'Excel 重导保护占位：清空重导期间抑制自动同步');",
     ]
     skip = 0
+    skip_owner = []
     for r in data:
         g = lambda c: str((r.get(c) or ('',))[0] or '').strip()
         cve = g('D')
@@ -109,7 +120,11 @@ def main(xlsx_path):
         except (ValueError, OverflowError):
             epss = None
         kev = 1 if g('H').upper() == 'Y' else 0
-        owner = OWNER_MAP.get(g('I'))
+        owner_raw = g('I')
+        owner = owner_map.get(owner_raw.lower()) if owner_raw else None
+        if owner_raw and owner is None:
+            skip_owner.append((cve, owner_raw))
+            continue
         affected = AFFECTED_MAP.get(g(AFFECTED_COL))
         analysis, fix = g('J'), g('L')
         adate = g('M')
@@ -165,6 +180,10 @@ def main(xlsx_path):
             total += len(batch)
             batch = []
     print(f"执行完成，共 {total} 条语句")
+    if skip_owner:
+        print(f"\n⚠ 因 Owner 未匹配到平台用户而跳过 {len(skip_owner)} 行：")
+        for cve, o in skip_owner:
+            print(f"  {cve}  Owner=\"{o}\" 未找到用户")
 
 
 if __name__ == '__main__':
