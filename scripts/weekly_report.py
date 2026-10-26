@@ -205,10 +205,10 @@ def build_html(d, start, end):
         for name in sorted(summary.keys()):
             e = summary[name].get('EMERGENCY', 0)
             c = summary[name].get('CRITICAL', 0)
-            sb.append(f"<p {P}><b>{name}</b>　未分析 {e + c} 条"
-                      + (f"（<span style='color:#dc2626;font-weight:bold;'>紧急 {e}</span>" if e else "（")
-                      + (f" · <span style='color:#ea580c;'>严重 {c}</span>" if c else "")
-                      + "）</p>")
+            parts = []
+            if e: parts.append(f"<span style='color:#dc2626;font-weight:bold;'>紧急 {e}</span>")
+            if c: parts.append(f"<span style='color:#ea580c;'>严重 {c}</span>")
+            sb.append(f"<p {P}><b>{name}</b>　未分析 {e + c} 条" + (f"（{' · '.join(parts)}）" if parts else "") + "</p>")
     if d['unanalyzed']:
         sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>级别</th><th {TH}>EPSS</th><th {TH}>触发信号</th></tr>")
         for name, cve, sev, epss, kev in d['unanalyzed'][:20]:
