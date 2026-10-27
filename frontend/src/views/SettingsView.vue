@@ -281,24 +281,29 @@
                   <template v-if="parseLogDetail(log).assets">
                     <div v-for="(block, assetName) in parseLogDetail(log).assets" :key="assetName" class="asset-block">
                       <div class="asset-block-title">{{ assetName }}<span class="asset-block-summary">{{ block.summary }}</span></div>
+                      <div v-if="block.resolveFuse" style="color:#dc2626;font-size:12px;padding:2px 12px;">
+                        ⚠ 置已解决熔断触发：DTrack 数据疑似异常（如升级重启后重建中），本轮已跳过自动置已解决
+                      </div>
                       <div v-if="block.added?.length">
                         <div class="detail-group-title">新增（{{ block.added.length }}）</div>
                         <div class="detail-band-summary">Band 分布：{{ bandSummary(block.added) }}</div>
                         <div class="detail-head">
                           <span>CVE 编号</span><span>CVSS 级别</span><span>Band</span><span>标题</span>
                         </div>
-                        <div v-for="(d, k) in block.added" :key="'a'+k" class="detail-row">
+                        <div v-for="(d, k) in block.added.slice(0, 50)" :key="'a'+k" class="detail-row">
                           <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span>{{ d.title }}</span>
                         </div>
+                        <div v-if="block.added.length > 50" class="detail-row" style="color:#94a3b8"><span>…共 {{ block.added.length }} 条，仅列前 50</span><span></span><span></span><span></span></div>
                       </div>
                       <div v-if="block.resolved?.length">
                         <div class="detail-group-title">置已解决（{{ block.resolved.length }}）</div>
                         <div class="detail-head">
                           <span>CVE 编号</span><span>标题</span><span></span><span></span>
                         </div>
-                        <div v-for="(d, k) in block.resolved" :key="'r'+k" class="detail-row">
+                        <div v-for="(d, k) in block.resolved.slice(0, 50)" :key="'r'+k" class="detail-row">
                           <span>{{ d.cve }}</span><span>{{ d.title }}</span><span></span><span></span>
                         </div>
+                        <div v-if="block.resolved.length > 50" class="detail-row" style="color:#94a3b8"><span>…共 {{ block.resolved.length }} 条，仅列前 50</span><span></span><span></span><span></span></div>
                       </div>
                       <div v-if="block.updated?.length">
                         <div class="detail-group-title">更新（{{ block.updated.length }}）</div>
@@ -306,9 +311,10 @@
                         <div class="detail-head cols-update">
                           <span>CVE 编号</span><span>CVSS 级别</span><span>分数</span><span>Band</span><span>触发信号</span>
                         </div>
-                        <div v-for="(d, k) in block.updated" :key="'u'+k" class="detail-row cols-update">
+                        <div v-for="(d, k) in block.updated.slice(0, 50)" :key="'u'+k" class="detail-row cols-update">
                           <span>{{ d.cve }}</span><span>{{ d.cvssLevel || '-' }}</span><span>{{ d.cvssScore || '-' }}</span><span>{{ d.band || d.severity || '-' }}</span><span style="color: var(--primary-600)">{{ d.reason || '-' }}</span>
                         </div>
+                        <div v-if="block.updated.length > 50" class="detail-row cols-update" style="color:#94a3b8"><span>…共 {{ block.updated.length }} 条，仅列前 50</span><span></span><span></span><span></span><span></span></div>
                       </div>
                       <div v-if="!block.added?.length && !block.updated?.length && !block.resolved?.length" class="detail-row">
                         <span>无变更</span><span></span><span></span><span></span>

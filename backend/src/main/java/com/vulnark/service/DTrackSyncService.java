@@ -301,6 +301,11 @@ public class DTrackSyncService {
                     block.put("added", r.get("addedList"));
                     block.put("updated", r.get("updatedList"));
                     block.put("resolved", r.get("resolvedList"));
+                    if (Boolean.TRUE.equals(r.get("resolveFuse"))) {
+                        block.put("resolveFuse", true);
+                        details.add(String.format("%s -> %s：置已解决熔断触发（DTrack 数据疑似异常，跳过自动置已解决）",
+                                dtrackName, assetName));
+                    }
                 } catch (Exception ex) {
                     log.setFailed(log.getFailed() + 1);
                     block.put("summary", "失败 " + ex.getMessage());
@@ -494,6 +499,7 @@ public class DTrackSyncService {
         }
 
         int added = 0, updated = 0, resolvedN = 0, failed = 0, descSupp = 0;
+        boolean resolveFuse = false;   // 置已解决熔断（数据源异常保护）
 
         // 新增与刷新
         for (Map.Entry<String, JsonNode> e : dtrackVulns.entrySet()) {
@@ -553,10 +559,25 @@ public class DTrackSyncService {
         // 统一策略（用户确认）：无论 source（API 或 Excel 人工导入），DTrack 不再
         // 报告的待处理 CVE 均自动置已解决并附备注，保留记录不删除
         if (autoResolve) {
+            // 先收集候选，再做熔断判断：防止 DTrack 数据源异常（如升级重启后漏洞
+            // 匹配重建未完成返回空数据）导致存量被批量误置已解决
+            List<Vulnerability> toResolve = new ArrayList<>();
             for (Vulnerability v : existing) {
                 if (v.getCveId() == null) continue;
                 if (!dtrackVulns.containsKey(v.getCveId())
                         && v.getStatus() == Vulnerability.Status.OPEN) {
+                    toResolve.add(v);
+                }
+            }
+            double resolveFuseRatio = 0.3;   // 候选超过存量 30% 视为数据源异常
+            if (!toResolve.isEmpty() && toResolve.size() > existing.size() * resolveFuseRatio) {
+                resolveFuse = true;
+                logger.warn("熔断触发[{}]：待置已解决 {} 条占存量 {} 的比例超过 {}%，"
+                                + "疑似 DTrack 数据源异常（升级/重启重建期），跳过自动置已解决",
+                        asset.getName(), toResolve.size(), existing.size(),
+                        (int) (resolveFuseRatio * 100));
+            } else {
+                for (Vulnerability v : toResolve) {
                     v.setStatus(Vulnerability.Status.RESOLVED);
                     v.setResolvedDate(LocalDate.now());
                     String note = String.format("[%s] DTrack 不再报告该漏洞（组件可能已升级或移除），自动置为已解决",
@@ -598,6 +619,7 @@ public class DTrackSyncService {
         result.put("added", added); result.put("updated", updated);
         result.put("resolved", resolvedN); result.put("failed", failed);
         result.put("descSupplemented", descSupp);
+        result.put("resolveFuse", resolveFuse);
         result.put("addedList", addedList);
         result.put("updatedList", updatedList);
         result.put("resolvedList", resolvedList);
