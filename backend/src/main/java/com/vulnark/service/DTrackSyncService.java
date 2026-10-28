@@ -314,24 +314,15 @@ public class DTrackSyncService {
             }
             if (mapping.isEmpty()) details.add("映射表为空，未同步任何项目");
 
-            // ===== EPSS/KEV 自动补全（FIRST + CISA 原始数据源）=====
-            Map<String, Object> enrichResult = null;
-            if (Boolean.parseBoolean(cfg("dtrack.enrich"))) {
-                try {
-                    enrichResult = enrichRiskFields(refresh);
-                } catch (Exception e) {
-                    logger.error("EPSS/KEV 补全失败", e);
-                    enrichResult = new LinkedHashMap<>();
-                    enrichResult.put("error", e.getMessage());
-                }
-            }
+            // ===== EPSS/KEV：DTrack 5.x 项目级接口已自带（与 FIRST/CISA 同源），
+            // 随 syncOne 逐条刷新，不再单独走外部补全（enrichRiskFields 保留备用）=====
 
             // detail 存 JSON：摘要 + 各类变更的 CVE 明细（前端展开显示）
             Map<String, Object> detailJson = new LinkedHashMap<>();
             detailJson.put("descSupplemented", descSuppTotal);
             detailJson.put("summary", String.join("\n", details));
             detailJson.put("assets", assetsDetail);
-            if (enrichResult != null) detailJson.put("enrich", enrichResult);
+
             log.setDetail(MAPPER.writeValueAsString(detailJson));
 
             // ===== 同步邮件通知（有变更时才发）=====
@@ -468,26 +459,23 @@ public class DTrackSyncService {
         if (target == null) throw new RuntimeException("DTrack 项目不存在: " + dtrackName);
         String projectUuid = target.path("uuid").asText();
 
-        // 拉取全部组件漏洞（组件内按 vulnId 去重），key=cveId
+        // 项目级一次拉取全部漏洞（DTrack 5.x 推荐：组件级接口在 5.1+ 只返回
+        // 组件直接关联的部分漏洞；项目级接口返回完整清单且自带 components 数组）
         Map<String, JsonNode> dtrackVulns = new HashMap<>();
         Map<String, String[]> compInfo = new HashMap<>();  // cveId -> [name, version]
-        JsonNode components = dtrackGet("/api/v1/component/project/" + projectUuid + "?limit=500");
-        for (JsonNode comp : components) {
-            String cuid = comp.path("uuid").asText();
-            String cname = comp.path("name").asText(), cver = comp.path("version").asText();
-            try {
-                JsonNode vulns = dtrackGet("/api/v1/vulnerability/component/" + cuid);
-                Set<String> seen = new HashSet<>();
-                for (JsonNode v : vulns) {
-                    String vid = v.path("vulnId").asText();
-                    if (vid.isEmpty() || !seen.add(vid)) continue;
-                    dtrackVulns.putIfAbsent(vid, v);
-                    compInfo.putIfAbsent(vid, new String[]{cname, cver});
-                }
-            } catch (Exception e) {
-                logger.warn("组件 {} 漏洞拉取失败: {}", cname, e.getMessage());
+        JsonNode projectVulns = dtrackGet("/api/v1/vulnerability/project/" + projectUuid);
+        for (JsonNode v : projectVulns) {
+            String vid = v.path("vulnId").asText();
+            if (vid.isEmpty() || dtrackVulns.containsKey(vid)) continue;
+            dtrackVulns.put(vid, v);
+            JsonNode comps = v.path("components");
+            if (comps.isArray() && comps.size() > 0) {
+                compInfo.put(vid, new String[]{
+                        comps.get(0).path("name").asText("-"),
+                        comps.get(0).path("version").asText("-")});
             }
         }
+        logger.info("项目 {} 拉取到漏洞 {} 条", asset.getName(), dtrackVulns.size());
 
         // 平台该资产现有漏洞（按 cveId 索引）
         List<Vulnerability> existing = vulnRepo.findAll().stream()
@@ -665,6 +653,19 @@ public class DTrackSyncService {
             v.setDescription(base + (base.isEmpty() ? "" : "\n\n") + "漏洞描述: " + dtrackDesc);
             if (descSupp != null) descSupp[0] = true;
         }
+        // EPSS/KEV：DTrack 5.x 项目级接口自带（与 FIRST/CISA 同源），同步时一次刷新
+        if (dv.hasNonNull("epssScore")) {
+            BigDecimal epss = BigDecimal.valueOf(dv.get("epssScore").asDouble()).setScale(5, java.math.RoundingMode.HALF_UP);
+            if (v.getEpssScore() == null || v.getEpssScore().compareTo(epss) != 0) {
+                v.setEpssScore(epss); changed = true;
+            }
+        }
+        if (dv.has("isKev")) {
+            boolean kev = dv.get("isKev").asBoolean(false);
+            if (v.getKev() == null || v.getKev() != kev) {
+                v.setKev(kev); changed = true;
+            }
+        }
         Double cvss = dv.hasNonNull("cvssV3BaseScore") ? dv.get("cvssV3BaseScore").asDouble()
                 : (dv.hasNonNull("cvssV2BaseScore") ? dv.get("cvssV2BaseScore").asDouble() : null);
         if (cvss != null) {
@@ -672,6 +673,7 @@ public class DTrackSyncService {
             if (bd.compareTo(cvss(v)) != 0) { v.setCvssScore(bd); changed = true; }
             Vulnerability.CvssLevel lvl = Vulnerability.CvssLevel.valueOf(bandToLevel(bd.doubleValue()));
             if (lvl != v.getCvssLevel()) { v.setCvssLevel(lvl); changed = true; }
+            // Band 用本轮最新 EPSS/KEV 计算（不再依赖后续 enrich）
             Vulnerability.Severity band = Vulnerability.computeBand(bd,
                     v.getEpssScore(), v.getKev());
             if (band != null && band != v.getSeverity()) { v.setSeverity(band); changed = true; }
