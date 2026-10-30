@@ -117,6 +117,23 @@ def collect():
     # 4.5 CVE -> 当前分析状态（过滤已确认不受影响的 Band 升级）
     d['vstatus'] = {r[0]: r[1] for r in rows("SELECT cve_id, verification_status FROM vulnerabilities WHERE deleted=0 AND verification_status IS NOT NULL")}
 
+    # 4.8 本周新完成分析（按 CVE 去重：本周首次从"未分析"转出、且本周最终状态非未分析，计 1 条）
+    # 反复修改同一 CVE 只计一次，操作人取本周最后一次操作者
+    d['newAnalysis'] = {}
+    na_sql = ("SELECT l.asset_id, COALESCE(l.changed_by,0), COUNT(DISTINCT l.cve_id) "
+              "FROM vuln_analysis_log l "
+              "JOIN (SELECT cve_id, MAX(id) mid FROM vuln_analysis_log "
+              "      WHERE changed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY cve_id) t ON l.id = t.mid "
+              "WHERE l.new_status != 'NONE' "
+              "AND EXISTS (SELECT 1 FROM vuln_analysis_log e WHERE e.cve_id = l.cve_id "
+              "            AND e.changed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND e.old_status IS NULL) "
+              "GROUP BY l.asset_id, COALESCE(l.changed_by,0)")
+    for r in rows(na_sql):
+        d['newAnalysis'].setdefault(int(r[0]), {})[int(r[1])] = int(r[2])
+    # 操作人姓名 / 资产名
+    d['userNames'] = {int(r[0]): r[1] for r in rows("SELECT id, COALESCE(full_name, username) FROM users")}
+    d['assetNames'] = {int(r[0]): r[1] for r in rows("SELECT id, name FROM assets WHERE deleted=0")}
+
     # 5. SMTP / 收件人配置
     cfg = {r[0]: r[1] for r in rows(
         "SELECT config_key, config_value FROM system_configs WHERE config_key LIKE 'smtp.%' OR config_key='notify.recipients'")}
@@ -192,7 +209,20 @@ def build_html(d, start, end):
                   f"<td {TD}>{vs.get('FALSE_POSITIVE',0)}</td><td {TD}>{vs.get('NULL',0)}</td>"
                   f"<td {TD} style='color:#16a34a;font-weight:bold;'>{rate}</td></tr>")
     sb.append("</table>")
-    sb.append(f"<p {NOTE}>范围外（高/中/低危）按当前策略不在处置范围。</p>")
+
+    # 本周新完成分析（来自审计日志，上线后开始积累）
+    na = d.get('newAnalysis') or {}
+    if any(na.values()):
+        sb.append(f"<p {P} style='margin-top:10px;'><b>本周新完成分析</b></p>")
+        names = d.get('assetNames', {})
+        users = d.get('userNames', {})
+        for aid in sorted(na.keys()):
+            byUser = na[aid]
+            total = sum(byUser.values())
+            who = ' / '.join(f"{users.get(uid, '用户' + str(uid))} {n}" for uid, n in sorted(byUser.items()) if uid)
+            sb.append(f"<p {P}>{names.get(aid, '资产#' + str(aid))}　新分析 {total} 条" + (f"（{who}）" if who else "") + "</p>")
+    sb.append(f"<p {NOTE}>范围外（高/中/低危）按当前策略不在处置范围；"
+              f"本周新分析自审计功能上线后开始积累。</p>")
 
     # 四、重点风险
     sb.append(f"<h3 {H3}>四、重点风险（范围内未分析）</h3>")
