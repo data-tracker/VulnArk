@@ -117,11 +117,18 @@ def collect():
     # 4.5 CVE -> 当前分析状态（过滤已确认不受影响的 Band 升级）
     d['vstatus'] = {r[0]: r[1] for r in rows("SELECT cve_id, verification_status FROM vulnerabilities WHERE deleted=0 AND verification_status IS NOT NULL")}
 
-    # 4.8 本周新完成分析（审计日志：old_status 为 NULL 即首次分析）
+    # 4.8 本周新完成分析（按 CVE 去重：本周首次从"未分析"转出、且本周最终状态非未分析，计 1 条）
+    # 反复修改同一 CVE 只计一次，操作人取本周最后一次操作者
     d['newAnalysis'] = {}
-    for r in rows("SELECT asset_id, COALESCE(changed_by,0), COUNT(*) FROM vuln_analysis_log "
-                  "WHERE changed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND old_status IS NULL "
-                  "AND new_status != 'NONE' GROUP BY asset_id, COALESCE(changed_by,0)"):
+    na_sql = ("SELECT l.asset_id, COALESCE(l.changed_by,0), COUNT(DISTINCT l.cve_id) "
+              "FROM vuln_analysis_log l "
+              "JOIN (SELECT cve_id, MAX(id) mid FROM vuln_analysis_log "
+              "      WHERE changed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY cve_id) t ON l.id = t.mid "
+              "WHERE l.new_status != 'NONE' "
+              "AND EXISTS (SELECT 1 FROM vuln_analysis_log e WHERE e.cve_id = l.cve_id "
+              "            AND e.changed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND e.old_status IS NULL) "
+              "GROUP BY l.asset_id, COALESCE(l.changed_by,0)")
+    for r in rows(na_sql):
         d['newAnalysis'].setdefault(int(r[0]), {})[int(r[1])] = int(r[2])
     # 操作人姓名 / 资产名
     d['userNames'] = {int(r[0]): r[1] for r in rows("SELECT id, COALESCE(full_name, username) FROM users")}
