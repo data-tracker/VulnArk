@@ -653,17 +653,22 @@ public class DTrackSyncService {
             v.setDescription(base + (base.isEmpty() ? "" : "\n\n") + "漏洞描述: " + dtrackDesc);
             if (descSupp != null) descSupp[0] = true;
         }
-        // EPSS/KEV：DTrack 5.x 项目级接口自带（与 FIRST/CISA 同源），同步时一次刷新
+        // EPSS/KEV：DTrack 5.x 项目级接口自带（与 FIRST/CISA 同源），同步时一次刷新。
+        // 注意：EPSS 每日微漂移（小数位）属常态，刷新数据但不计入"更新"——否则
+        // 每天几百条"无变化却更新"的噪声。真正的风险信号（EPSS 跨 0.5 阈值引起
+        // Band 变化）由下方 computeBand 比对捕获并正确计入更新。
         if (dv.hasNonNull("epssScore")) {
             BigDecimal epss = BigDecimal.valueOf(dv.get("epssScore").asDouble()).setScale(5, java.math.RoundingMode.HALF_UP);
             if (v.getEpssScore() == null || v.getEpssScore().compareTo(epss) != 0) {
-                v.setEpssScore(epss); changed = true;
+                v.setEpssScore(epss);
+                if (descSupp != null) descSupp[0] = true;   // 刷新需保存，但不计更新
             }
         }
         if (dv.has("isKev")) {
             boolean kev = dv.get("isKev").asBoolean(false);
             if (v.getKev() == null || v.getKev() != kev) {
-                v.setKev(kev); changed = true;
+                v.setKev(kev);
+                if (descSupp != null) descSupp[0] = true;   // 同上
             }
         }
         Double cvss = dv.hasNonNull("cvssV3BaseScore") ? dv.get("cvssV3BaseScore").asDouble()
