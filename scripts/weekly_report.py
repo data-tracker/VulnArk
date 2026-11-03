@@ -47,7 +47,7 @@ def rows(sql: str):
 BANDS = ['EMERGENCY', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 CHANNEL_CN = {'SCA': '组件分析', 'SCANNER': '漏洞扫描', 'PENTEST': '渗透测试',
               'CUSTOMER_FEEDBACK': '客户反馈', 'INTERNAL_REPORT': '内部反馈',
-              'EXTERNAL_REPORT': '外部报告', 'ADVISORY': '通告监测', 'MANUAL_REVIEW': '人工排查'}
+              'EXTERNAL_REPORT': '外部报告', 'ADVISORY': '通告监测', 'MANUAL_REVIEW': '安全排查'}
 BAND_CN = {'EMERGENCY': '紧急', 'CRITICAL': '严重', 'HIGH': '高危',
            'MEDIUM': '中危', 'LOW': '低危'}
 VS_CN = {'AFFECTED': '受影响', 'NOT_AFFECTED': '不受影响',
