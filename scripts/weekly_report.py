@@ -45,6 +45,9 @@ def rows(sql: str):
 
 
 BANDS = ['EMERGENCY', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+CHANNEL_CN = {'SCA': '组件分析', 'SCANNER': '漏洞扫描', 'PENTEST': '渗透测试',
+              'CUSTOMER_FEEDBACK': '客户反馈', 'INTERNAL_REPORT': '内部反馈',
+              'EXTERNAL_REPORT': '外部报告', 'ADVISORY': '通告监测', 'MANUAL_REVIEW': '安全排查'}
 BAND_CN = {'EMERGENCY': '紧急', 'CRITICAL': '严重', 'HIGH': '高危',
            'MEDIUM': '中危', 'LOW': '低危'}
 VS_CN = {'AFFECTED': '受影响', 'NOT_AFFECTED': '不受影响',
@@ -108,11 +111,24 @@ def collect():
 
     # 4. 未分析清单（E+C，附触发信号）
     d['unanalyzed'] = rows("""SELECT a.name, v.cve_id, v.severity,
-                                v.epss_score, v.kev+0
+                                v.epss_score, v.kev+0, v.discovery_channel
                              FROM vulnerabilities v JOIN assets a ON v.asset_id=a.id
                              WHERE v.deleted=0 AND v.severity IN ('EMERGENCY','CRITICAL')
                                AND v.verification_status IS NULL
                              ORDER BY FIELD(v.severity,'EMERGENCY','CRITICAL'), v.epss_score DESC""")
+
+    # 4.1 各资产渠道存量分布
+    d['channel_dist'] = {}
+    for r in rows("SELECT a.name, v.discovery_channel, COUNT(*) FROM vulnerabilities v "
+                  "JOIN assets a ON v.asset_id=a.id WHERE v.deleted=0 GROUP BY a.name, v.discovery_channel"):
+        d['channel_dist'].setdefault(r[0], {})[r[1] or 'N/A'] = int(r[2])
+
+    # 4.2 本周各渠道新增（created_time 近7天，录入/导入时间戳可靠）
+    d['channel_new'] = {}
+    for r in rows("SELECT v.discovery_channel, COUNT(*) FROM vulnerabilities v "
+                  "WHERE v.deleted=0 AND v.created_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) "
+                  "GROUP BY v.discovery_channel"):
+        d['channel_new'][r[0] or 'N/A'] = int(r[1])
 
     # 4.5 CVE -> 当前分析状态（过滤已确认不受影响的 Band 升级）
     d['vstatus'] = {r[0]: r[1] for r in rows("SELECT cve_id, verification_status FROM vulnerabilities WHERE deleted=0 AND verification_status IS NOT NULL")}
@@ -167,9 +183,22 @@ def build_html(d, start, end):
         total = sum(dist.values())
         sb.append(f"<p {P}><b>{asset}</b>　总 {total:,} 条</p>")
         sb.append(f"<p style='font-size:13px;color:#64748b;margin:2px 0 10px 24px;'>{band_line(dist)}</p>")
+    # 渠道存量分布（总览表）
+    if d.get('channel_dist'):
+        sb.append(f"<p {P}><b>发现渠道分布</b>（存量）</p>")
+        all_ch = {}
+        for _, chs in d['channel_dist'].items():
+            for ch, n in chs.items():
+                all_ch[ch] = all_ch.get(ch, 0) + n
+        for ch, n in sorted(all_ch.items(), key=lambda x: -x[1]):
+            sb.append(f"<p style='font-size:13px;color:#64748b;margin:2px 0 2px 24px;'>{CHANNEL_CN.get(ch, ch)} {n:,}</p>")
 
     # 二、本周动态
-    sb.append(f"<h3 {H3}>二、本周动态（数据同步）</h3>")
+    sb.append(f"<h3 {H3}>二、本周动态（全渠道）</h3>")
+    # 各渠道新增（created_time 聚合，含同步与人工录入/导入）
+    if d.get('channel_new'):
+        parts = [f"{CHANNEL_CN.get(ch, ch)} {n}" for ch, n in sorted(d['channel_new'].items(), key=lambda x: -x[1])]
+        sb.append(f"<p {P}>本周新增（按渠道）：" + " · ".join(parts) + "</p>")
     if d['sync']:
         for asset in sorted(set(list(d['sync'].keys()) + list(d['band'].keys()))):
             s = d['sync'].get(asset, {'added': 0, 'updated': 0, 'resolved': 0, 'addedBands': {}})
@@ -228,7 +257,7 @@ def build_html(d, start, end):
     sb.append(f"<h3 {H3}>四、重点风险（范围内未分析）</h3>")
     # 汇总：行式（与第二节风格一致）
     summary = {}
-    for name, cve, sev, epss, kev in d['unanalyzed']:
+    for name, cve, sev, epss, kev, chn in d['unanalyzed']:
         summary.setdefault(name, {}).setdefault(sev, 0)
         summary[name][sev] += 1
     if summary:
@@ -241,7 +270,7 @@ def build_html(d, start, end):
             sb.append(f"<p {P}><b>{name}</b>　未分析 {e + c} 条" + (f"（{' · '.join(parts)}）" if parts else "") + "</p>")
     if d['unanalyzed']:
         sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>级别</th><th {TH}>EPSS</th><th {TH}>触发信号</th></tr>")
-        for name, cve, sev, epss, kev in d['unanalyzed'][:20]:
+        for name, cve, sev, epss, kev, chn in d['unanalyzed'][:20]:
             sig = []
             if kev == '1': sig.append('KEV')
             try:
@@ -251,7 +280,7 @@ def build_html(d, start, end):
             color = '#dc2626' if sev == 'EMERGENCY' else '#ea580c'
             sb.append(f"<tr><td {TD}>{name}</td><td {TD}><b>{cve}</b></td>"
                       f"<td {TD} style='color:{color};font-weight:bold;'>{sev_cn}</td>"
-                      f"<td {TD}>{epss or '-'}</td><td {TD} style='color:#1a6ee0;'>{' + '.join(sig) or '-'}</td></tr>")
+                      f"<td {TD}>{CHANNEL_CN.get(chn, chn or '-')}</td><td {TD}>{epss or '-'}</td><td {TD} style='color:#1a6ee0;'>{' + '.join(sig) or '-'}</td></tr>")
         sb.append("</table>")
         if len(d['unanalyzed']) > 20:
             sb.append(f"<p {NOTE}>…共 {len(d['unanalyzed'])} 条，仅列前 20。</p>")

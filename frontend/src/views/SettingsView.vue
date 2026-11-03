@@ -163,6 +163,9 @@
               <a-form-item label="站点名称" help="显示在系统界面与浏览器标题">
                 <a-input v-model="generalForm['site.name']" placeholder="VulnArk" />
               </a-form-item>
+              <a-form-item label="工单系统地址" help="工单编号跳转链接前缀，如 https://jira.example.com/browse/（换工单系统时改这里即可）">
+                <a-input v-model="generalForm['ticket.base_url']" placeholder="https://jira.example.com/browse/" />
+              </a-form-item>
               <a-button type="primary" :loading="savingConfig" @click="saveConfig('general')">保存设置</a-button>
             </a-form>
           </div>
@@ -488,7 +491,7 @@ const savePassword = async () => {
 const savingConfig = ref(false)
 const testing = ref(false)
 const testTo = ref('')
-const generalForm = reactive<Record<string, any>>({ 'site.name': '' })
+const generalForm = reactive<Record<string, any>>({ 'site.name': '', 'ticket.base_url': '' })
 const emailForm = reactive<Record<string, any>>({
   'smtp.enabled': 'false',
   'smtp.host': '',
