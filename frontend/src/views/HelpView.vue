@@ -35,6 +35,44 @@
           </div>
         </a-tab-pane>
 
+        <!-- 发现渠道与工单 -->
+        <a-tab-pane key="channel" title="发现渠道与工单">
+          <div class="tab-body">
+            <h3>什么是发现渠道？</h3>
+            <p>每条漏洞都标记了它的<b>首次发现途径</b>，用于回答"这个漏洞是怎么被发现的"。
+              渠道是历史事实，一旦记录不会被自动修改——即使后来被其他渠道也发现了。</p>
+            <table class="help-table">
+              <tr><th>渠道</th><th>含义</th></tr>
+              <tr v-for="c in channels" :key="c.name">
+                <td><b>{{ c.label }}</b></td><td>{{ c.desc }}</td>
+              </tr>
+            </table>
+
+            <h3>与数据来源的区别</h3>
+            <table class="help-table">
+              <tr><th></th><th>发现渠道</th><th>数据来源</th></tr>
+              <tr><td><b>回答什么</b></td><td>漏洞最早被谁/什么途径发现</td><td>记录由谁管理（平台同步/人工维护）</td></tr>
+              <tr><td><b>可否变化</b></td><td>不自动变（历史留痕）</td><td>人工录入被平台同步接管后自动升级</td></tr>
+              <tr><td><b>典型场景</b></td><td>客户反馈先于扫描器半年发现</td><td>客户反馈的漏洞后来同步也覆盖了</td></tr>
+            </table>
+
+            <h3>工单关联</h3>
+            <p>漏洞可关联工单编号（支持 Jira/PingCode 等任意工单系统）：</p>
+            <div class="workflow-steps">
+              <div class="step">🔗 在漏洞详情中查看工单编号，配置了工单系统地址后可直接点击跳转</div>
+              <div class="step">✏️ 编辑漏洞时填写工单编号</div>
+              <div class="step">📦 批量操作：选中多条漏洞 → "批量填工单" → 输入编号（一个工单对应一批漏洞）</div>
+            </div>
+
+            <div class="help-note">
+              <b>💡 组件信息</b>：漏洞详情中的组件（如 linux kernel @ 5.4.213）来自
+              Dependency-Track 同步，同步来源的组件为只读（以 DTrack 为准）；
+              人工录入的漏洞可手动填写组件。筛选器可按组件名模糊筛选
+              （如搜"openssl"找出该组件的全部漏洞）。
+            </div>
+          </div>
+        </a-tab-pane>
+
         <!-- 分析与状态 -->
         <a-tab-pane key="analysis" title="分析与状态">
           <div class="tab-body">
@@ -131,6 +169,17 @@ import { ref } from 'vue'
 
 defineOptions({ name: 'HelpView' })
 const activeTab = ref('severity')
+
+const channels = [
+  { name: 'SCA', label: '组件分析', desc: 'Dependency-Track 组件依赖分析自动发现（同步自动标记）' },
+  { name: 'SCANNER', label: '漏洞扫描', desc: '各类扫描工具发现（Nessus/Goby 等，明细中记录工具名）' },
+  { name: 'PENTEST', label: '渗透测试', desc: '内部或外部渗透测试报告' },
+  { name: 'CUSTOMER_FEEDBACK', label: '客户反馈', desc: '客户上报的漏洞（明细中记录客户信息）' },
+  { name: 'INTERNAL_REPORT', label: '内部反馈', desc: '员工/团队上报' },
+  { name: 'EXTERNAL_REPORT', label: '外部报告', desc: '安全研究者、CNVD 等第三方通报' },
+  { name: 'ADVISORY', label: '通告监测', desc: '主动盯梢厂商安全通告发现（如 Qualcomm 月度安全公告）' },
+  { name: 'MANUAL_REVIEW', label: '安全排查', desc: '安全团队主动自查/代码审计发现' }
+]
 
 const bands = [
   { label: '紧急', name: 'EMERGENCY', color: '#FFC7CE', desc: '已知在野利用（KEV），或 CVSS≥9 且 EPSS>0.5（双重高危信号）' },
