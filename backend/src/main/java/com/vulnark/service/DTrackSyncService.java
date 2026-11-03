@@ -46,6 +46,7 @@ public class DTrackSyncService {
     @Autowired private SystemConfigRepository configRepo;
     @Autowired private SyncLogRepository syncLogRepo;
     @Autowired private VulnerabilityRepository vulnRepo;
+    @Autowired private com.vulnark.repository.AssetComponentRepository assetComponentRepo;
     @Autowired private AssetRepository assetRepo;
     @Autowired private AssetService assetService;
 
@@ -477,6 +478,31 @@ public class DTrackSyncService {
         }
         logger.info("项目 {} 拉取到漏洞 {} 条", asset.getName(), dtrackVulns.size());
 
+        // BOM 静默积累：组件清单写入 asset_components（界面二期，数据先跑起来）
+        try {
+            JsonNode bomComps = dtrackGet("/api/v1/component/project/" + projectUuid + "?limit=500");
+            LocalDate today = LocalDate.now();
+            for (JsonNode c : bomComps) {
+                String cn = c.path("name").asText(""), cv = c.path("version").asText("");
+                if (cn.isEmpty()) continue;
+                com.vulnark.entity.AssetComponent ac = assetComponentRepo
+                        .findByAssetIdAndComponentNameAndComponentVersion(asset.getId(), cn, cv)
+                        .orElseGet(() -> {
+                            com.vulnark.entity.AssetComponent n = new com.vulnark.entity.AssetComponent();
+                            n.setAssetId(asset.getId());
+                            n.setComponentName(cn);
+                            n.setComponentVersion(cv);
+                            n.setComponentUuid(c.path("uuid").asText(null));
+                            n.setSource("DT_SYNC");
+                            return n;
+                        });
+                ac.setLastSeen(today);
+                assetComponentRepo.save(ac);
+            }
+        } catch (Exception e) {
+            logger.warn("BOM 写入失败（不影响同步）: {}", e.getMessage());
+        }
+
         // 平台该资产现有漏洞（按 cveId 索引）
         List<Vulnerability> existing = vulnRepo.findAll().stream()
                 .filter(v -> asset.getId().equals(v.getAssetId()) && Boolean.FALSE.equals(v.getDeleted()))
@@ -514,6 +540,20 @@ public class DTrackSyncService {
                     String oldBand = String.valueOf(cur.getSeverity());
                     boolean[] descSuppFlag = {false};
                     boolean changed = applyRiskFields(cur, dv, descSuppFlag);
+                    // 管辖权升级：人工来源被 DTrack 报告 -> DT_SYNC（从此参与置已解决）
+                    if (cur.getSource() != Vulnerability.VulnerabilitySource.DT_SYNC) {
+                        cur.setSource(Vulnerability.VulnerabilitySource.DT_SYNC);
+                        changed = true;
+                    }
+                    // 组件结构化补全（人工导入记录首次被 DT 匹配时）
+                    if (cur.getComponentName() == null) {
+                        JsonNode comps0 = dv.path("components");
+                        if (comps0.isArray() && comps0.size() > 0) {
+                            cur.setComponentName(comps0.get(0).path("name").asText(null));
+                            cur.setComponentVersion(comps0.get(0).path("version").asText(null));
+                            changed = true;
+                        }
+                    }
                     if (descSuppFlag[0]) descSupp++;
                     boolean riskChanged = changed;
                     if (descSuppFlag[0] && !riskChanged) vulnRepo.save(cur); // 仅描述变化：保存但不计更新
@@ -553,7 +593,10 @@ public class DTrackSyncService {
             for (Vulnerability v : existing) {
                 if (v.getCveId() == null) continue;
                 if (!dtrackVulns.containsKey(v.getCveId())
-                        && v.getStatus() == Vulnerability.Status.OPEN) {
+                        && v.getStatus() == Vulnerability.Status.OPEN
+                        // 仅 DTrack 管辖记录参与自动置已解决；人工来源（客户反馈/
+                        // 扫描导入等）豁免——DTrack 无权结案非管辖记录
+                        && v.getSource() == Vulnerability.VulnerabilitySource.DT_SYNC) {
                     toResolve.add(v);
                 }
             }
@@ -634,7 +677,14 @@ public class DTrackSyncService {
         v.setAssetId(asset.getId());
         v.setProjectId(getDefaultProjectId());
         v.setReporterId(1L);
-        v.setSource(Vulnerability.VulnerabilitySource.API);
+        v.setSource(Vulnerability.VulnerabilitySource.DT_SYNC);
+        v.setDiscoveryChannel("SCA");   // 组件分析发现（自动标记）
+        // 组件结构化（项目级接口 components[0]，与标题同源）
+        JsonNode comps0 = dv.path("components");
+        if (comps0.isArray() && comps0.size() > 0) {
+            v.setComponentName(comps0.get(0).path("name").asText(null));
+            v.setComponentVersion(comps0.get(0).path("version").asText(null));
+        }
         v.setKev(Boolean.FALSE);
         v.setAffectedSystems("依赖组件 " + cname + "@" + cver);
         applyRiskFields(v, dv, null);
