@@ -32,6 +32,22 @@ public class SystemConfigController {
         }
     }
 
+    @Operation(summary = "公开配置（白名单键，登录可读）", description = "仅返回非敏感的展示配置（如工单系统地址），避免普通角色访问完整配置接口被拒")
+    @GetMapping("/public")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<java.util.Map<String, String>> publicConfigs() {
+        java.util.Map<String, String> out = new java.util.HashMap<>();
+        try {
+            java.util.Map<String, java.util.Map<String, String>> grouped = systemConfigService.getAllGrouped();
+            for (String key : new String[]{"ticket.base_url"}) {
+                for (java.util.Map<String, String> g : grouped.values()) {
+                    if (g.containsKey(key)) { out.put(key, g.get(key)); break; }
+                }
+            }
+        } catch (Exception ignored) {}
+        return ApiResponse.success("获取成功", out);
+    }
+
     @Operation(summary = "批量保存系统配置")
     @PutMapping
     public ApiResponse<Void> saveAll(@RequestBody Map<String, String> configs) {
