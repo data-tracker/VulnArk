@@ -21,6 +21,9 @@ public class User {
     @Schema(description = "用户名")
     @Column(unique = true, nullable = false, length = 50)
     private String username;
+
+    @Column(name = "last_active_at")
+    private java.time.LocalDateTime lastActiveAt;
     
     @Schema(description = "邮箱")
     @Column(unique = true, nullable = false, length = 100)
@@ -235,4 +238,7 @@ public class User {
     public void setDeleted(Boolean deleted) {
         this.deleted = deleted;
     }
+
+    public java.time.LocalDateTime getLastActiveAt() { return lastActiveAt; }
+    public void setLastActiveAt(java.time.LocalDateTime v) { this.lastActiveAt = v; }
 }

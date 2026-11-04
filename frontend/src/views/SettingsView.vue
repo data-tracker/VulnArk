@@ -171,6 +171,42 @@
           </div>
         </div>
 
+        <!-- 审计日志（ADMIN） -->
+        <div v-if="activeTab === 'general' && isAdmin" class="panel-card" style="margin-top: 16px">
+          <h3 class="panel-title">审计日志</h3>
+          <p class="sync-hint">操作留痕（只增不改）：分析/处置/负责人/工单/资产变更与系统自动操作</p>
+          <div style="margin-bottom: 8px">
+            <a-select v-model="auditFilter.action" placeholder="按动作筛选" allow-clear style="width: 220px" @change="loadAudit">
+              <a-option value="ANALYSIS_CHANGE">分析变更</a-option>
+              <a-option value="STATUS_CHANGE">处置状态变更</a-option>
+              <a-option value="ASSIGNEE_CHANGE">负责人分配</a-option>
+              <a-option value="TICKET_CHANGE">工单关联</a-option>
+              <a-option value="ASSET_CREATE">资产创建</a-option>
+              <a-option value="ASSET_UPDATE">资产修改</a-option>
+              <a-option value="ASSET_DELETE">资产删除</a-option>
+              <a-option value="AUTO_RESOLVE">系统置已解决</a-option>
+            </a-select>
+          </div>
+          <a-table :data="auditList" :pagination="{ current: auditPage + 1, pageSize: 20, total: auditTotal, showTotal: true }"
+                   @page-change="(p: number) => { auditPage = p - 1; loadAudit() }" size="small">
+            <template #columns>
+              <a-table-column title="时间" :width="150">
+                <template #cell="{ record }">{{ (record.createdAt || '').replace('T', ' ').slice(0, 19) }}</template>
+              </a-table-column>
+              <a-table-column title="操作人" data-index="userName" :width="110" />
+              <a-table-column title="动作" :width="130">
+                <template #cell="{ record }">{{ auditActionLabel(record.action) }}</template>
+              </a-table-column>
+              <a-table-column title="对象" data-index="objectLabel" :width="150" />
+              <a-table-column title="变更" :ellipsis="true">
+                <template #cell="{ record }">
+                  <span style="font-size:12px">{{ record.oldValue || '空' }} → {{ record.newValue || '空' }}</span>
+                </template>
+              </a-table-column>
+            </template>
+          </a-table>
+        </div>
+
         <!-- 数据同步（ADMIN） -->
         <div v-if="activeTab === 'sync' && isAdmin" class="content-panel">
           <div class="panel-card">
@@ -491,6 +527,27 @@ const savePassword = async () => {
 const savingConfig = ref(false)
 const testing = ref(false)
 const testTo = ref('')
+// ===== 审计日志 =====
+const auditList = ref<any[]>([])
+const auditTotal = ref(0)
+const auditPage = ref(0)
+const auditFilter = reactive<any>({ action: undefined })
+const loadAudit = async () => {
+  try {
+    const { default: request } = await import('@/api/request')
+    const q = new URLSearchParams({ page: String(auditPage.value), size: '20' })
+    if (auditFilter.action) q.set('action', auditFilter.action)
+    const r = await request.get(`/audit?${q.toString()}`)
+    auditList.value = r.content || []
+    auditTotal.value = r.totalElements || 0
+  } catch { /* 忽略 */ }
+}
+const auditActionLabel = (a: string) => ({
+  ANALYSIS_CHANGE: '分析变更', STATUS_CHANGE: '处置状态', ASSIGNEE_CHANGE: '负责人',
+  TICKET_CHANGE: '工单关联', ASSET_CREATE: '资产创建', ASSET_UPDATE: '资产修改',
+  ASSET_DELETE: '资产删除', AUTO_RESOLVE: '系统置已解决'
+} as any)[a] || a
+
 const generalForm = reactive<Record<string, any>>({ 'site.name': '', 'ticket.base_url': '' })
 const emailForm = reactive<Record<string, any>>({
   'smtp.enabled': 'false',
@@ -755,6 +812,7 @@ onMounted(async () => {
   loadConfigs()
   // 覆盖直接刷新到 sync 页签或 URL 带 ?tab=sync 的场景
   if (isAdmin.value) initSyncTab()
+  loadAudit()
 })
 </script>
 

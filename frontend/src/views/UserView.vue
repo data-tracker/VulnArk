@@ -23,6 +23,14 @@
             <a-table-column title="用户名" data-index="username" :width="150" />
             <a-table-column title="姓名" data-index="fullName" :width="150" />
             <a-table-column title="邮箱" data-index="email" :width="200" />
+            <a-table-column title="最后活跃" :width="120">
+              <template #cell="{ record }">
+                <span v-if="record.lastActiveAt" :style="{ color: isActive(record.lastActiveAt) ? '#16a34a' : '#64748b', fontSize: '12px' }">
+                  {{ isActive(record.lastActiveAt) ? '● 在线' : timeAgo(record.lastActiveAt) }}
+                </span>
+                <span v-else style="color:#cbd5e1;font-size:12px">从未</span>
+              </template>
+            </a-table-column>
             <a-table-column title="角色" data-index="role" :width="120">
               <template #cell="{ record }">
                 <a-tag :color="getRoleColor(record.role)">
@@ -167,7 +175,7 @@
               label="状态"
             >
               <a-select v-model="formData.status" placeholder="请选择状态">
-                <a-option value="ACTIVE">活跃</a-option>
+                <a-option value="ACTIVE">启用</a-option>
                 <a-option value="INACTIVE">禁用</a-option>
                 <a-option value="LOCKED">锁定</a-option>
               </a-select>
@@ -218,6 +226,14 @@
 </template>
 
 <script setup lang="ts">
+
+const isActive = (t: string) => new Date(t).getTime() > Date.now() - 5 * 60 * 1000
+const timeAgo = (t: string) => {
+  const m = Math.floor((Date.now() - new Date(t).getTime()) / 60000)
+  if (m < 60) return m + ' 分钟前'
+  if (m < 1440) return Math.floor(m / 60) + ' 小时前'
+  return Math.floor(m / 1440) + ' 天前'
+}
 import { ref, onMounted, reactive } from 'vue'
 import { IconPlus } from '@arco-design/web-vue/es/icon'
 import { Message, Modal } from '@arco-design/web-vue'
@@ -498,7 +514,7 @@ const getStatusColor = (status: string) => {
 
 const getStatusLabel = (status: string) => {
   const labels = {
-    ACTIVE: '活跃',
+    ACTIVE: '启用',
     INACTIVE: '禁用',
     LOCKED: '锁定'
   }

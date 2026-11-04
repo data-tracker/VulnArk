@@ -48,6 +48,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 延迟获取UserService以避免循环依赖
                     UserService userService = applicationContext.getBean(UserService.class);
                     userService.findByUsername(username).ifPresent(user -> {
+                        // 活跃时间刷新（60s 节流，避免高频写库）
+                        try {
+                            if (user.getLastActiveAt() == null
+                                    || user.getLastActiveAt().isBefore(java.time.LocalDateTime.now().minusSeconds(60))) {
+                                user.setLastActiveAt(java.time.LocalDateTime.now());
+                                applicationContext.getBean(com.vulnark.repository.UserRepository.class).save(user);
+                            }
+                        } catch (Exception ignored) {}
                         // 创建认证对象
                         UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(

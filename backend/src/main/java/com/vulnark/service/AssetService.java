@@ -27,6 +27,9 @@ public class AssetService {
     
     @Autowired
     private AssetRepository assetRepository;
+
+    @Autowired
+    private com.vulnark.service.AuditService auditService;
     
     @Autowired
     private VulnerabilityRepository vulnerabilityRepository;
@@ -35,6 +38,15 @@ public class AssetService {
      * 创建资产
      */
     public Asset createAsset(AssetRequest request) {
+        Asset created = createAssetInternal(request);
+        try {
+            auditService.logAsset(null, "ASSET_CREATE", created.getId(), created.getName(),
+                    null, null, "新建资产");
+        } catch (Exception ignored) {}
+        return created;
+    }
+
+    private Asset createAssetInternal(AssetRequest request) {
         // 验证IP地址唯一性
         if (assetRepository.findByIpAddressAndDeletedFalse(request.getIpAddress()).isPresent()) {
             throw new BusinessException("IP地址已存在: " + request.getIpAddress());
@@ -69,6 +81,16 @@ public class AssetService {
      * 更新资产
      */
     public Asset updateAsset(Long id, AssetRequest request) {
+        String nameBefore = getAssetById(id).getName();
+        Asset updated = updateAssetInternal(id, request);
+        try {
+            auditService.logAsset(null, "ASSET_UPDATE", updated.getId(), updated.getName(),
+                    "info", nameBefore, "信息更新（" + updated.getName() + "）");
+        } catch (Exception ignored) {}
+        return updated;
+    }
+
+    private Asset updateAssetInternal(Long id, AssetRequest request) {
         Asset asset = getAssetById(id);
         
         // 验证IP地址唯一性（排除自己）
@@ -105,6 +127,15 @@ public class AssetService {
      * 删除资产（硬删除）
      */
     public void deleteAsset(Long id) {
+        Asset target = getAssetById(id);
+        try {
+            auditService.logAsset(null, "ASSET_DELETE", target.getId(), target.getName(),
+                    null, null, "删除资产（原IP: " + target.getIpAddress() + "）");
+        } catch (Exception ignored) {}
+        deleteAssetInternal(id);
+    }
+
+    private void deleteAssetInternal(Long id) {
         Asset asset = getAssetById(id);
         // 删除保护：资产下存在漏洞时拒绝删除，防止误删分析成果并产生孤儿漏洞
         long vulnCount = vulnerabilityRepository.countByAssetIdAndDeletedFalse(id);

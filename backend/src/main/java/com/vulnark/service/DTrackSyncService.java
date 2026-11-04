@@ -47,6 +47,7 @@ public class DTrackSyncService {
     @Autowired private SyncLogRepository syncLogRepo;
     @Autowired private VulnerabilityRepository vulnRepo;
     @Autowired private com.vulnark.repository.AssetComponentRepository assetComponentRepo;
+    @Autowired private com.vulnark.service.AuditService auditSvc;
     @Autowired private AssetRepository assetRepo;
     @Autowired private AssetService assetService;
 
@@ -609,6 +610,11 @@ public class DTrackSyncService {
                         (int) (resolveFuseRatio * 100));
             } else {
                 for (Vulnerability v : toResolve) {
+                    // 审计：系统自动置已解决（谁/何时/为什么）
+                    try {
+                        auditSvc.logVulnChange(null, "AUTO_RESOLVE", v.getId(), v.getCveId(),
+                                "status", "OPEN", "RESOLVED");
+                    } catch (Exception ignored) {}
                     v.setStatus(Vulnerability.Status.RESOLVED);
                     v.setResolvedDate(LocalDate.now());
                     String note = String.format("[%s] DTrack 不再报告该漏洞（组件可能已升级或移除），自动置为已解决",
