@@ -130,6 +130,11 @@ def collect():
                   "GROUP BY v.discovery_channel"):
         d['channel_new'][r[0] or 'N/A'] = int(r[1])
 
+    # 4.3 本周分析量（审计日志精确计数）
+    d['week_analysis'] = rows("SELECT new_value, COUNT(*) FROM audit_log "
+                               "WHERE action='ANALYSIS_CHANGE' "
+                               "AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY new_value")
+
     # 4.5 CVE -> 当前分析状态（过滤已确认不受影响的 Band 升级）
     d['vstatus'] = {r[0]: r[1] for r in rows("SELECT cve_id, verification_status FROM vulnerabilities WHERE deleted=0 AND verification_status IS NOT NULL")}
 
@@ -250,6 +255,12 @@ def build_html(d, start, end):
             total = sum(byUser.values())
             who = ' / '.join(f"{users.get(uid, '用户' + str(uid))} {n}" for uid, n in sorted(byUser.items()) if uid)
             sb.append(f"<p {P}>{names.get(aid, '资产#' + str(aid))}　新分析 {total} 条" + (f"（{who}）" if who else "") + "</p>")
+    # 本周分析量（审计精确计数）
+    if d.get('week_analysis'):
+        wa = {r[0]: int(r[1]) for r in d['week_analysis']}
+        parts = [f"受影响 {wa.get('AFFECTED', 0)}", f"不受影响 {wa.get('NOT_AFFECTED', 0)}",
+                 f"误报 {wa.get('FALSE_POSITIVE', 0)}", f"退回未分析 {wa.get('未分析', 0)}"]
+        sb.append(f"<p {P}>本周共完成分析变更 <b>{sum(wa.values())}</b> 次：" + " · ".join(parts) + "</p>")
     sb.append(f"<p {NOTE}>范围外（高/中/低危）按当前策略不在处置范围；"
               f"本周新分析自审计功能上线后开始积累。</p>")
 
