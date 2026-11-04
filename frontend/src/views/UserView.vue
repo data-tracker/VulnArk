@@ -175,7 +175,7 @@
               label="状态"
             >
               <a-select v-model="formData.status" placeholder="请选择状态">
-                <a-option value="ACTIVE">活跃</a-option>
+                <a-option value="ACTIVE">启用</a-option>
                 <a-option value="INACTIVE">禁用</a-option>
                 <a-option value="LOCKED">锁定</a-option>
               </a-select>
@@ -514,7 +514,7 @@ const getStatusColor = (status: string) => {
 
 const getStatusLabel = (status: string) => {
   const labels = {
-    ACTIVE: '活跃',
+    ACTIVE: '启用',
     INACTIVE: '禁用',
     LOCKED: '锁定'
   }
