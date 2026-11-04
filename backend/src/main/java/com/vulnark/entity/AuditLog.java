@@ -47,6 +47,9 @@ public class AuditLog {
     @Column(length = 45)
     private String ip;
 
+    @Column(name = "batch_id", length = 36)
+    private String batchId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -73,5 +76,7 @@ public class AuditLog {
     public void setDetail(String v) { this.detail = v; }
     public String getIp() { return ip; }
     public void setIp(String v) { this.ip = v; }
+    public String getBatchId() { return batchId; }
+    public void setBatchId(String v) { this.batchId = v; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

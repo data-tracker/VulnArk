@@ -19,14 +19,21 @@ public class AuditService {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
-    /** 便捷写入：漏洞对象变更 */
+    /** 便捷写入：漏洞对象变更（带批次 ID） */
     public void logVulnChange(User operator, String action, Long vulnId, String cveId,
-                               String field, String oldValue, String newValue) {
+                               String field, String oldValue, String newValue, String batchId) {
         AuditLog log = base(operator, action, "VULNERABILITY", vulnId, cveId);
+        log.setBatchId(batchId);
         log.setField(field);
         log.setOldValue(oldValue);
         log.setNewValue(newValue);
         auditLogRepository.save(log);
+    }
+
+    /** 兼容旧调用（无批次） */
+    public void logVulnChange(User operator, String action, Long vulnId, String cveId,
+                               String field, String oldValue, String newValue) {
+        logVulnChange(operator, action, vulnId, cveId, field, oldValue, newValue, null);
     }
 
     /** 批量操作汇总（明细清单放 detail JSON） */
