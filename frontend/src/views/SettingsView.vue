@@ -193,11 +193,11 @@
               <a-table-column title="时间" :width="150">
                 <template #cell="{ record }">{{ (record.createdAt || '').replace('T', ' ').slice(0, 19) }}</template>
               </a-table-column>
-              <a-table-column title="操作人" data-key="userName" :width="110" />
+              <a-table-column title="操作人" data-index="userName" :width="110" />
               <a-table-column title="动作" :width="130">
                 <template #cell="{ record }">{{ auditActionLabel(record.action) }}</template>
               </a-table-column>
-              <a-table-column title="对象" data-key="objectLabel" :width="150" />
+              <a-table-column title="对象" data-index="objectLabel" :width="150" />
               <a-table-column title="变更" :ellipsis="true">
                 <template #cell="{ record }">
                   <span style="font-size:12px">{{ record.oldValue || '空' }} → {{ record.newValue || '空' }}</span>
