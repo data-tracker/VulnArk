@@ -545,7 +545,7 @@ const loadAudit = async () => {
 const auditActionLabel = (a: string) => ({
   ANALYSIS_CHANGE: '分析变更', STATUS_CHANGE: '处置状态', ASSIGNEE_CHANGE: '负责人',
   TICKET_CHANGE: '工单关联', ASSET_CREATE: '资产创建', ASSET_UPDATE: '资产修改',
-  ASSET_DELETE: '资产删除', AUTO_RESOLVE: '系统置已解决'
+  ASSET_DELETE: '资产删除', AUTO_RESOLVE: '系统置已解决（DTrack 不再报告）'
 } as any)[a] || a
 
 const generalForm = reactive<Record<string, any>>({ 'site.name': '', 'ticket.base_url': '' })
