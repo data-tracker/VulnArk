@@ -84,7 +84,9 @@ const handleSubmit = async () => {
   try {
     await authStore.login(form)
     Message.success('登录成功')
-    router.push('/dashboard')
+    const redirect = sessionStorage.getItem('login_redirect')
+    if (redirect) { sessionStorage.removeItem('login_redirect'); router.push(redirect) }
+    else router.push('/dashboard')
   } catch (error: any) {
     Message.error(error.message || '登录失败')
   } finally {
