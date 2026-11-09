@@ -150,6 +150,10 @@ public class AssetService {
     /**
      * 根据ID获取资产
      */
+    public Long getAssetIdByName(String name) {
+        return assetRepository.findByNameAndDeletedFalse(name).map(Asset::getId).orElse(null);
+    }
+
     public Asset getAssetById(Long id) {
         return assetRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new RuntimeException("资产不存在或已被删除"));

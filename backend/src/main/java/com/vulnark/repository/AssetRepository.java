@@ -14,6 +14,7 @@ import java.util.Optional;
 
 @Repository
 public interface AssetRepository extends JpaRepository<Asset, Long> {
+    Optional<Asset> findByNameAndDeletedFalse(String name);
     
     // 查找未删除的资产
     List<Asset> findByDeletedFalse();

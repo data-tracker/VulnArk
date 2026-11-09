@@ -103,6 +103,10 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
   if (to.meta.requiresAuth !== false && !authStore.isAuthenticated) {
+    // 记录原目标：登录后回跳（分享链接直达场景）
+    if (to.fullPath && to.fullPath !== '/dashboard') {
+      sessionStorage.setItem('login_redirect', to.fullPath)
+    }
     next('/login')
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     next('/dashboard')
