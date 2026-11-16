@@ -280,7 +280,7 @@ def build_html(d, start, end):
             if c: parts.append(f"<span style='color:#ea580c;'>严重 {c}</span>")
             sb.append(f"<p {P}><b>{name}</b>　未分析 {e + c} 条" + (f"（{' · '.join(parts)}）" if parts else "") + "</p>")
     if d['unanalyzed']:
-        sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>级别</th><th {TH}>EPSS</th><th {TH}>触发信号</th></tr>")
+        sb.append(f"<table {TBL}><tr><th {TH}>资产</th><th {TH}>CVE</th><th {TH}>级别</th><th {TH}>渠道</th><th {TH}>EPSS</th><th {TH}>触发信号</th></tr>")
         for name, cve, sev, epss, kev, chn in d['unanalyzed'][:20]:
             sig = []
             if kev == '1': sig.append('KEV')
