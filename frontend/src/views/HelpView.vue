@@ -111,7 +111,7 @@
             <h3>同步机制</h3>
             <table class="help-table">
               <tr><th>项目</th><th>说明</th></tr>
-              <tr><td><b>同步频率</b></td><td>每天凌晨 2:00 自动执行，也可手动触发</td></tr>
+              <tr><td><b>同步频率</b></td><td>每天早上 9:00 自动执行，也可手动触发</td></tr>
               <tr><td><b>数据来源</b></td><td>Dependency-Track（漏洞清单 + CVSS）+ FIRST（EPSS）+ CISA（KEV）</td></tr>
               <tr><td><b>通知方式</b></td><td>同步完成后如有变更，自动发送邮件报告</td></tr>
             </table>
