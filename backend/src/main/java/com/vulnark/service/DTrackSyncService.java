@@ -328,10 +328,13 @@ public class DTrackSyncService {
             log.setDetail(MAPPER.writeValueAsString(detailJson));
 
             // ===== 同步邮件通知（有变更时才发）=====
+            // 失败原因写入同步日志明细（界面红字可见），不再只留 backend 日志
             try {
                 sendSyncNotification(log, detailJson);
             } catch (Exception e) {
                 logger.error("同步通知邮件发送失败: {}", e.getMessage());
+                detailJson.put("mailError", "邮件发送失败: " + e.getMessage());
+                try { log.setDetail(MAPPER.writeValueAsString(detailJson)); } catch (Exception ignored) {}
             }
         } catch (Exception e) {
             log.setFailed(log.getFailed() + 1);

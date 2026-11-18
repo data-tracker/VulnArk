@@ -391,6 +391,11 @@
                       </div>
                     </div>
                   </template>
+                  <div v-if="parseLogDetail(log).mailError" class="detail-row" style="color:#dc2626">
+                    <span>⚠ 邮件通知</span>
+                    <span>{{ parseLogDetail(log).mailError }}（请检查系统设置 → 邮件通知的 SMTP 密码）</span>
+                    <span></span><span></span>
+                  </div>
                   <div v-if="parseLogDetail(log).descSupplemented" class="detail-row" style="color:#94a3b8">
                     <span>描述补全</span>
                     <span>{{ parseLogDetail(log).descSupplemented }} 条（DTrack 官方漏洞描述批量补充，不计入更新）</span>
