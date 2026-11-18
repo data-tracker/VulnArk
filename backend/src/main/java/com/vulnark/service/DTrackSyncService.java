@@ -249,8 +249,8 @@ public class DTrackSyncService {
                 due = true;
             } else if ("hourly".equals(freq)) {
                 due = last.isBefore(now.minusHours(1));
-            } else { // daily：每天凌晨 2:00 固定时刻（未到 2 点看昨天窗口）
-                LocalDateTime windowStart = now.toLocalDate().atTime(2, 0);
+            } else { // daily：每天早上 9:00 固定时刻（未到 9 点看昨天窗口）
+                LocalDateTime windowStart = now.toLocalDate().atTime(9, 0);
                 if (now.isBefore(windowStart)) windowStart = windowStart.minusDays(1);
                 due = last.isBefore(windowStart);
             }
