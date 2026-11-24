@@ -48,6 +48,15 @@ BANDS = ['EMERGENCY', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 CHANNEL_CN = {'SCA': '组件分析', 'SCANNER': '漏洞扫描', 'PENTEST': '渗透测试',
               'CUSTOMER_FEEDBACK': '客户反馈', 'INTERNAL_REPORT': '内部反馈',
               'EXTERNAL_REPORT': '外部报告', 'ADVISORY': '通告监测', 'MANUAL_REVIEW': '安全排查'}
+def ch_key(x):
+    """渠道码归一：MySQL 空值输出为字符串 'NULL'，统一归为 None"""
+    return None if (x is None or x in ('NULL', '')) else x
+
+def ch_label(x):
+    """渠道显示名：空渠道显示'未标注'"""
+    x = ch_key(x)
+    return '未标注' if x is None else CHANNEL_CN.get(x, x)
+
 BAND_CN = {'EMERGENCY': '紧急', 'CRITICAL': '严重', 'HIGH': '高危',
            'MEDIUM': '中危', 'LOW': '低危'}
 VS_CN = {'AFFECTED': '受影响', 'NOT_AFFECTED': '不受影响',
@@ -196,13 +205,13 @@ def build_html(d, start, end):
             for ch, n in chs.items():
                 all_ch[ch] = all_ch.get(ch, 0) + n
         for ch, n in sorted(all_ch.items(), key=lambda x: -x[1]):
-            sb.append(f"<p style='font-size:13px;color:#64748b;margin:2px 0 2px 24px;'>{CHANNEL_CN.get(ch, ch)} {n:,}</p>")
+            sb.append(f"<p style='font-size:13px;color:#64748b;margin:2px 0 2px 24px;'>{ch_label(ch)} {n:,}</p>")
 
     # 二、本周动态
     sb.append(f"<h3 {H3}>二、本周动态（全渠道）</h3>")
     # 各渠道新增（created_time 聚合，含同步与人工录入/导入）
     if d.get('channel_new'):
-        parts = [f"{CHANNEL_CN.get(ch, ch)} {n}" for ch, n in sorted(d['channel_new'].items(), key=lambda x: -x[1])]
+        parts = [f"{ch_label(ch)} {n}" for ch, n in sorted(d['channel_new'].items(), key=lambda x: -x[1])]
         sb.append(f"<p {P}>本周新增（按渠道）：" + " · ".join(parts) + "</p>")
     if d['sync']:
         for asset in sorted(set(list(d['sync'].keys()) + list(d['band'].keys()))):
@@ -291,7 +300,7 @@ def build_html(d, start, end):
             color = '#dc2626' if sev == 'EMERGENCY' else '#ea580c'
             sb.append(f"<tr><td {TD}>{name}</td><td {TD}><b>{cve}</b></td>"
                       f"<td {TD} style='color:{color};font-weight:bold;'>{sev_cn}</td>"
-                      f"<td {TD}>{CHANNEL_CN.get(chn, chn or '-')}</td><td {TD}>{epss or '-'}</td><td {TD} style='color:#1a6ee0;'>{' + '.join(sig) or '-'}</td></tr>")
+                      f"<td {TD}>{ch_label(chn)}</td><td {TD}>{epss or '-'}</td><td {TD} style='color:#1a6ee0;'>{' + '.join(sig) or '-'}</td></tr>")
         sb.append("</table>")
         if len(d['unanalyzed']) > 20:
             sb.append(f"<p {NOTE}>…共 {len(d['unanalyzed'])} 条，仅列前 20。</p>")
