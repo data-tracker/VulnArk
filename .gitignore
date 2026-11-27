@@ -48,3 +48,11 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties 
+
+# Python
+__pycache__/
+*.py[co]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
